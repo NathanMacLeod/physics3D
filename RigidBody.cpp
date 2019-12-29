@@ -1,7 +1,7 @@
 #include "RigidBody.h"
 #include "transformation3D.h"
 
-const double DEFAULT_PARTICLE_DENSITY = 0.5;
+const double DEFAULT_PARTICLE_DENSITY = 0.25;
 
 RigidBody::RigidBody(const std::vector<RigidSurface*>& surfaces, double density, double friction, double restitution, bool fixed) {
 	this->fixed = fixed;
@@ -14,16 +14,17 @@ RigidBody::RigidBody(const std::vector<RigidSurface*>& surfaces, double density,
 		}
 		pointsToTransform.push_back(surface->getNormalVectorPoint());
 	}
+
+	findBodyMassAndInertia(density, DEFAULT_PARTICLE_DENSITY);
+	createReferenceCopies();
+	findCollisionRadius();
+
 	orientationPoint1 = Point3D(centerOfMass.x, centerOfMass.y - 1, centerOfMass.z);
 	orientationPoint2 = Point3D(centerOfMass.x + 1, centerOfMass.y, centerOfMass.z);
 
 	pointsToTransform.push_back(&orientationPoint1);
 	pointsToTransform.push_back(&orientationPoint2);
 	pointsToTransform.push_back(&centerOfMass);
-
-	findBodyMassAndInertia(density, DEFAULT_PARTICLE_DENSITY);
-	createReferenceCopies();
-	findCollisionRadius();
 }
 
 void RigidBody::acclerateLineraly(const Vector3D changeInVelocity) {
@@ -54,6 +55,8 @@ bool RigidBody::getFixed() {
 	return fixed;
 }
 
+
+//todo: do this is not dumb way
 void RigidBody::findBodyMassAndInertia(double particleMass, double particleSpacing) {
 	double lowestX = 0;
 	double greatestX = 0;
@@ -92,8 +95,11 @@ void RigidBody::findBodyMassAndInertia(double particleMass, double particleSpaci
 
 	std::vector<RigidSurface*> intersectingPlanes;
 	std::vector<double*> planesYRange;
+	int nplanes = 0;
+	int nlines = 0;
+	int npoints = 0;
 	for(double x = lowestX; x < greatestX; x += particleSpacing) {
-		int numForPlane = 0;
+		nplanes++;
 		intersectingPlanes.clear();
 		for (double* bounds : planesYRange) {
 			delete[] bounds;
@@ -121,6 +127,9 @@ void RigidBody::findBodyMassAndInertia(double particleMass, double particleSpaci
 			if (!intersectFound)
 				continue;
 
+			if (bound1 == bound2)
+				continue;
+
 			double* bounds = new double[2];
 			if (bound1 > bound2) {
 				bounds[0] = bound2;
@@ -139,7 +148,7 @@ void RigidBody::findBodyMassAndInertia(double particleMass, double particleSpaci
 			double zMax = 0;
 			bool firstMatch = true;
 			for (int i = 0; i < planesYRange.size(); i++) {
-				if (y <= planesYRange.at(i)[0] || y >= planesYRange.at(i)[1])
+				if (y < planesYRange.at(i)[0] || y > planesYRange.at(i)[1])
 					continue;
 				Point3D* p1 = intersectingPlanes.at(i)->getPoints()->at(0);
 				Vector3D planeNV(*p1, *(intersectingPlanes.at(i)->getNormalVectorPoint()));
@@ -156,6 +165,7 @@ void RigidBody::findBodyMassAndInertia(double particleMass, double particleSpaci
 				if (zMax < zIntersect)
 					zMax = zIntersect;
 			}
+			nlines++;
 			
 			//std::cout << "      zMin:" << zMin << " zMax:" << zMax << "\n";
 			Point3D* min = new Point3D(x, y, zMin);
@@ -167,11 +177,12 @@ void RigidBody::findBodyMassAndInertia(double particleMass, double particleSpaci
 				centerOfMass.x += x;
 				centerOfMass.y += y;
 				centerOfMass.z += z;
-				numForPlane++;
+				npoints++;
 			}
 		}
 		//std::cout << "Num for Xcord " << x << ": " << numForPlane << "\n";
 	}
+	//std::cout << nplanes << " " << nlines << " " << npoints << "\n";
 	centerOfMass.x /= numPoints;
 	centerOfMass.y /= numPoints;
 	centerOfMass.z /= numPoints;
@@ -182,9 +193,10 @@ void RigidBody::findBodyMassAndInertia(double particleMass, double particleSpaci
 		Point3D* zMin = line[0];
 		Point3D* zMax = line[1];
 		double rX = zMin->x - centerOfMass.x;
-		double rY = zMin->y = centerOfMass.y;
+		double rY = zMin->y - centerOfMass.y;
 		double rXSquared = rX * rX;
 		double rYSquared = rY * rY;
+		//std::cout << zMin->z << " " << zMax->z << "\n";
 		for (double z = zMin->z; z < zMax->z; z += particleSpacing) {
 			double rZ = z - centerOfMass.z;
 			double rZSquared = rZ * rZ;
@@ -195,7 +207,7 @@ void RigidBody::findBodyMassAndInertia(double particleMass, double particleSpaci
 			inertiaTensor[4] += rXSquared + rZSquared;
 			inertiaTensor[5] += -rY * rZ;
 			inertiaTensor[6] += -rZ * rX;
-			inertiaTensor[7] += -rZ * -rY;
+			inertiaTensor[7] += -rZ * rY;
 			inertiaTensor[8] += rXSquared + rYSquared;
 		}
 		delete zMin;
@@ -211,7 +223,7 @@ Vector3D* RigidBody::findVectorRelativeToBodyFrame(const Vector3D vector, Vector
 	Vector3D orientationVector1(centerOfMass, orientationPoint1);
 	Vector3D orientationVector2(centerOfMass, orientationPoint2);
 	Vector3D orientationVector3;
-	orientationVector2.crossProduct(orientationVector1, &orientationVector3);
+	orientationVector1.crossProduct(orientationVector2, &orientationVector3);
 
 	double negYVal = orientationVector1.dotProduct(vector);
 	double xVal = orientationVector2.dotProduct(vector);

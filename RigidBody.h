@@ -20,7 +20,7 @@ class RigidBody {
 	double inverseMass;
 	double friction;
 	double restitution;
-	double* inertiaTensor;
+	//double* inertiaTensor
 	bool fixed;
 	
 	void findBodyMassAndInertia(double particleMass, double particleDensity);
@@ -29,6 +29,7 @@ class RigidBody {
 	bool getPointInsideBody(const Point3D point, const std::vector<Point3D*> vectorPositions, const std::vector<Vector3D*> normalVectors);
 	Vector3D* findVectorRelativeToBodyFrame(const Vector3D vector, Vector3D* output);
 public:
+	double* inertiaTensor; //remove
 	RigidBody(const std::vector<RigidSurface*>& surfaces, double density, double friction, double resistution, bool fixed); //not done
 	void recalibrateFromReference();
 	bool bodiesInCollisionRange(RigidBody& body);

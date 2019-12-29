@@ -27,6 +27,77 @@ double PhysicsEngine::getTimestep() {
 	return timestep;
 }
 
+void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, RigidSurface* colSurface, Point3D* colPoint, double restitutionFactor, double colDepth) {
+	double restitution = collidee->getRestitution() * restitutionFactor;
+	Vector3D nV(*(colSurface->getPoints()->at(0)), *(colSurface->getNormalVectorPoint()));
+	//push bodies apart
+
+	Vector3D p1ToP(*(colSurface->getPoints()->at(0)), *colPoint);
+	double distToPlane = abs(nV.dotProduct(p1ToP));
+	double dCldr = distToPlane / (1 + collider->getMass() * collidee->getInverseMass());
+	double dCldee = distToPlane - dCldr;
+	Vector3D cldeTransform;
+	nV.multiply(-dCldee, &cldeTransform);
+	Vector3D cldrTransform;
+	nV.multiply(dCldr, &cldrTransform);
+	collider->translate(cldrTransform);
+	collidee->translate(cldeTransform);
+
+	Vector3D vCldrP0;
+	collider->getVelocityOfPoint(*colPoint, &vCldrP0);
+	Vector3D vCldeP0;
+	collidee->getVelocityOfPoint(*colPoint, &vCldeP0);
+	Vector3D velRel;
+	vCldeP0.sub(vCldrP0, &velRel);
+	Vector3D rClde(*(collidee->getCenterOfMass()), *colPoint);
+	Vector3D rCldr(*(collider->getCenterOfMass()), *colPoint);
+	Vector3D jRotAxis;
+	rCldr.crossProduct(nV, &jRotAxis);
+	double invIClde = collidee->findInverseInertiaOfAxis(jRotAxis);
+	double invICldr = collider->findInverseInertiaOfAxis(jRotAxis);
+	Vector3D rCldeXn;
+	rClde.crossProduct(nV, &rCldeXn);
+	Vector3D rCldrXn;
+	rCldr.crossProduct(nV, &rCldrXn);
+
+	double numerator = -(restitution + 1) * nV.dotProduct(velRel);
+	double denomenator = (collider->getInverseMass() + collidee->getInverseMass() + rCldrXn.getMagnitudeSquared() * invICldr + rCldeXn.getMagnitudeSquared() * invIClde);
+
+	double impulseMagnitude = numerator / denomenator;
+	Vector3D impulse;
+	nV.multiply(impulseMagnitude, &impulse);
+
+	Vector3D velParralel;
+	nV.multiply(nV.dotProduct(velRel), &velParralel);
+	Vector3D k;
+	Vector3D frictionImpulse;
+	velRel.sub(velParralel, &k);
+	if (k.getMagnitudeSquared() != 0) {
+		k.getUnitVector(&k);
+		rCldr.crossProduct(k, &jRotAxis);
+		numerator = k.dotProduct(velRel);
+		Vector3D rCldrXk;
+		rCldr.crossProduct(k, &rCldrXk);
+		Vector3D rCldeXk;
+		rCldr.crossProduct(k, &rCldeXk);
+		denomenator = (collider->getInverseMass() + collidee->getInverseMass() + rCldrXk.getMagnitudeSquared() * invICldr + rCldeXk.getMagnitudeSquared() * invIClde);
+		double frictionImpMag = numerator / denomenator;
+		if (abs(frictionImpMag) > abs(impulseMagnitude)* collidee->getFriction())
+			frictionImpMag = impulseMagnitude * collidee->getFriction();
+		k.multiply(-frictionImpMag, &frictionImpulse);
+	}
+
+	collidee->applyImpulseAtPosition(impulse, *colPoint);
+	impulse.multiply(-1, &impulse);
+	collider->applyImpulseAtPosition(impulse, *colPoint);
+
+	if (frictionImpulse.getMagnitudeSquared() != 0) {
+		collider->applyImpulseAtPosition(frictionImpulse, *colPoint);
+		frictionImpulse.multiply(-1, &frictionImpulse);
+		collidee->applyImpulseAtPosition(frictionImpulse, *colPoint);
+	}
+}
+
 void PhysicsEngine::iterateEngineTimestep() {
 	Vector3D gravityAcceleration(gravity.x * timestep, gravity.y * timestep, gravity.z * timestep);
 	for (RigidBody* body : rigidBodies) {
@@ -42,7 +113,7 @@ void PhysicsEngine::iterateEngineTimestep() {
 			//resolve up to n collisions between the bodies.
 			double restitutionMultiplier = 1;
 			double restitutionReductionFactor = 0.6;
-			double maxCollisions = 1;
+			double maxCollisions = 5;
 			for (int i = 0; i < maxCollisions; i++) {
 				Point3D* b1ColPoint = nullptr;
 				RigidSurface* b1ColSurface = nullptr;
@@ -54,11 +125,13 @@ void PhysicsEngine::iterateEngineTimestep() {
 				RigidBody* collidee = nullptr;
 				Point3D* colPoint = nullptr;
 				RigidSurface* colSurface = nullptr;
+				double colDepth = 0;
 				if (b1ColDepth > b2ColDepth) {
 					collider = body1;
 					collidee = body2;
 					colPoint = b1ColPoint;
 					colSurface = b1ColSurface;
+					colDepth = b1ColDepth;
 				}
 				else {
 					if (b2ColDepth == -1)
@@ -67,38 +140,9 @@ void PhysicsEngine::iterateEngineTimestep() {
 					collidee = body1;
 					colPoint = b2ColPoint;
 					colSurface = b2ColSurface;
+					colDepth = b2ColDepth;
 				}
-				double restitution = collidee->getRestitution() * pow(restitutionReductionFactor, i);
-				Vector3D nV(*(colSurface->getPoints()->at(0)), *(colSurface->getNormalVectorPoint()));
-				Vector3D vCldrP0;
-				collider->getVelocityOfPoint(*colPoint, &vCldrP0);
-				Vector3D vCldeP0;
-				collidee->getVelocityOfPoint(*colPoint, &vCldeP0);
-				Vector3D velRel;
-				vCldeP0.sub(vCldrP0, &velRel);
-				Vector3D rClde(*(collidee->getCenterOfMass()), *colPoint);
-				Vector3D rCldr(*(collider->getCenterOfMass()), *colPoint);
-				Vector3D jRotAxis;
-				rCldr.crossProduct(nV, &jRotAxis);
-				double invIClde = collidee->findInverseInertiaOfAxis(jRotAxis);
-				double invICldr = collider->findInverseInertiaOfAxis(jRotAxis);
-				Vector3D rCldeXn;
-				rClde.crossProduct(nV, &rCldeXn);
-				Vector3D rCldrXn;
-				rCldr.crossProduct(nV, &rCldrXn);
-
-				double numerator = -(restitution + 1) * nV.dotProduct(velRel);
-				double denomenator = (collider->getInverseMass() + collidee->getInverseMass() + rCldrXn.getMagnitudeSquared() * invICldr + rCldeXn.getMagnitudeSquared() * invIClde);
-
-				double impulseMagnitude = numerator / denomenator;
-				Vector3D impulse;
-				nV.multiply(impulseMagnitude, &impulse);
-
-				//todo add friction;
-
-				collidee->applyImpulseAtPosition(impulse, *colPoint);
-				impulse.multiply(-1, &impulse);
-				collider->applyImpulseAtPosition(impulse, *colPoint);
+				resolveImpulses(collider, collidee, colSurface, colPoint, pow(restitutionReductionFactor, i), colDepth);
 			}
 		}
 	}

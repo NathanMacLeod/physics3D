@@ -70,6 +70,11 @@ int main() {
 	RigidBody* b1 = new RigidBody(*createRigidBodyFromPolygons(*b1polygons), 1, 0.3, 0.3, false);
 	RigidBody* b2 = new RigidBody(*createRigidBodyFromPolygons(*b2polygons), 1, 0.3, 0.3, true);
 
+	Vector3D axis1(1, 0, 0);
+	Vector3D axis2(0, 1, 0);
+	Vector3D axis3(0, 0, 1);
+	Vector3D axis4(1, 1, 1);
+
 	pEngine.addRigidBody(b1);
 	pEngine.addRigidBody(b2);
 
@@ -102,12 +107,24 @@ int main() {
 	bool xHeld = false;
 	bool v;
 	bool vHeld = false;
-
+	
+	double newCubeTime = 2;
+	double t = newCubeTime;
 	while (true) {
 		t2 = std::chrono::system_clock::now();
 		std::chrono::duration<float> timePassed = t2 - t1;
 		t1 = t2;
 		queuedTime += timePassed.count();
+		t -= timePassed.count();
+		if (t <= 0) {
+			t = newCubeTime;
+			std::vector<Polygon3D*>* b1polygons = createBox(10, 10, 10, 0, -23.6, 100);
+			RigidBody* b1 = new RigidBody(*createRigidBodyFromPolygons(*b1polygons), 1, 0.3, 0.3, false);
+			pEngine.addRigidBody(b1);
+			for (Polygon3D* polygon : *b1polygons) {
+				allPolygons->push_back(polygon);
+			}
+		}
 		while (queuedTime > pEngine.getTimestep()) {
 			//std::cout << "X:" << b1->getCenterOfMass()->x << " y:" << b1->getCenterOfMass()->y << " z:" << b1->getCenterOfMass()->z << "\n";
 			pEngine.iterateEngineTimestep();
@@ -196,7 +213,7 @@ int main() {
 		//cameraPos.y = -5;
 		//cameraPos.y = r * sin(queuedTime);
 		//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, 0, 0, cubeCenter.z, dTheta, 0, 0);
-		engine.drawPolygons(*allPolygons, cameraPos, yAng, xAng, 200, false);
+		engine.drawPolygons(*allPolygons, cameraPos, yAng, xAng, 200, true);
 		//engine.draw3DLine(p1, p2, cameraPos, yAng, xAng, 200);
 
 		//engine.drawLine(0, 0, 179, 0, engine.PICZEL, white);
