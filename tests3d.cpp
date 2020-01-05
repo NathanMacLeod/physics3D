@@ -75,15 +75,15 @@ int main() {
 	Vector3D axis3(0, 0, 1);
 	Vector3D axis4(1, 1, 1);
 
-	pEngine.addRigidBody(b1);
+	//pEngine.addRigidBody(b1);
 	pEngine.addRigidBody(b2);
 
 	for (Polygon3D* polygon : *b2polygons) {
 		allPolygons->push_back(polygon);
 	}
-	for (Polygon3D* polygon : *b1polygons) {
-		allPolygons->push_back(polygon);
-	}
+	//for (Polygon3D* polygon : *b1polygons) {
+	//	allPolygons->push_back(polygon);
+	//}
 	
 
 	Point3D cameraPos(0, 0, 0);
@@ -118,12 +118,24 @@ int main() {
 		t -= timePassed.count();
 		if (t <= 0) {
 			t = newCubeTime;
-			std::vector<Polygon3D*>* b1polygons = createBox(10, 10, 10, 0, -23.6, 100);
-			RigidBody* b1 = new RigidBody(*createRigidBodyFromPolygons(*b1polygons), 1, 0.3, 0.3, false);
-			pEngine.addRigidBody(b1);
+			double x = 0;
+			double y = -30;
+			double z = 100;
+			std::vector<Polygon3D*>* b1polygons = createBox(10, 10, 10, x, y, z);
+			
+			std::vector<Point3D*> points;
 			for (Polygon3D* polygon : *b1polygons) {
 				allPolygons->push_back(polygon);
+				points.push_back(polygon->p1);
+				points.push_back(polygon->p2);
+				points.push_back(polygon->p3);
 			}
+			Vector3D axis(1, 1, 1);
+			axis.getUnitVector(&axis);
+			transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, x, y, z, 3.14159 / 2.0);
+			RigidBody* b1 = new RigidBody(*createRigidBodyFromPolygons(*b1polygons), 1, 0.3, 0.3, false);
+			pEngine.addRigidBody(b1);
+			delete b1polygons;
 		}
 		while (queuedTime > pEngine.getTimestep()) {
 			//std::cout << "X:" << b1->getCenterOfMass()->x << " y:" << b1->getCenterOfMass()->y << " z:" << b1->getCenterOfMass()->z << "\n";

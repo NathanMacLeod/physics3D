@@ -3,7 +3,7 @@
 
 
 const double GRAV_DEFAULT = 20;
-const double TIMESTEP_DEFAULT = 0.01;
+const double TIMESTEP_DEFAULT = 0.03;
 
 PhysicsEngine::PhysicsEngine() {
 	gravity.y = GRAV_DEFAULT;
@@ -30,6 +30,8 @@ double PhysicsEngine::getTimestep() {
 void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, RigidSurface* colSurface, Point3D* colPoint, double restitutionFactor, double colDepth) {
 	double restitution = collidee->getRestitution() * restitutionFactor;
 	Vector3D nV(*(colSurface->getPoints()->at(0)), *(colSurface->getNormalVectorPoint()));
+	//if (nV.y >= 0 && collidee->getInverseMass() == 0)
+	//	std::cout << colSurface->getPoints()->at(0)->y << "\n";
 	//push bodies apart
 
 	Vector3D p1ToP(*(colSurface->getPoints()->at(0)), *colPoint);
@@ -72,7 +74,7 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, Ri
 	Vector3D k;
 	Vector3D frictionImpulse;
 	velRel.sub(velParralel, &k);
-	if (k.getMagnitudeSquared() != 0) {
+	if (k.notZero()) {
 		k.getUnitVector(&k);
 		rCldr.crossProduct(k, &jRotAxis);
 		numerator = k.dotProduct(velRel);
@@ -91,7 +93,7 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, Ri
 	impulse.multiply(-1, &impulse);
 	collider->applyImpulseAtPosition(impulse, *colPoint);
 
-	if (frictionImpulse.getMagnitudeSquared() != 0) {
+	if (frictionImpulse.notZero()) {
 		collider->applyImpulseAtPosition(frictionImpulse, *colPoint);
 		frictionImpulse.multiply(-1, &frictionImpulse);
 		collidee->applyImpulseAtPosition(frictionImpulse, *colPoint);

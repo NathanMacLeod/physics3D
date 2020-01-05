@@ -435,6 +435,10 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, R
 			double distToBodySquared = pow(p->x - body.getCenterOfMass()->x, 2) + pow(p->y - body.getCenterOfMass()->y, 2) + pow(p->z - body.getCenterOfMass()->z, 2);
 			if (distToBodySquared > body.getCollisionRadiusSquared())
 				continue;
+			if (!body.getPointInsideBody(*p)) {
+				continue;
+			}
+
 			//point can potentially be a collision point, now check to see if the ray from the center of mass to the point
 			//intersects any surfaces on body
 			RigidSurface* nearestPenetratedSurface = nullptr;
@@ -477,7 +481,7 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, R
 					if (p1J * p2J > 0)
 						continue;
 					double p1I = point1.dotProduct(planeAxisI);
-					double p2I = point1.dotProduct(planeAxisI);
+					double p2I = point2.dotProduct(planeAxisI);
 					if (p1J == 0) {
 						pointInSurface = p1I * p1I > p1ToIntersectDistSquared;
 						break;
@@ -486,7 +490,7 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, R
 						pointInSurface = p2I * p2I > p1ToIntersectDistSquared;
 						break;
 					}
-					double iIntercept = (p2I == p1I)? p2I : -p1J * (p2I - p1I)/(p2J - p1J);
+					double iIntercept = (p2I == p1I)? p2I : p1I -p1J * (p2I - p1I)/(p2J - p1J);
 					pointInSurface = iIntercept * iIntercept > p1ToIntersectDistSquared;
 					break;
 				}
@@ -502,8 +506,9 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, R
 					nearestPenetratingSurfaceDistSquared = distFromCenterOfMass;
 				}
 			}
-			if (nearestPenetratedSurface == nullptr)
+			if (nearestPenetratedSurface == nullptr) {
 				continue;
+			}
 
 			Point3D* surfaceP1 = nearestPenetratedSurface->getPoints()->at(0);
 			Vector3D p1ToP(*surfaceP1, *p);

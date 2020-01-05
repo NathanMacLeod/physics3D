@@ -68,3 +68,7 @@ Vector3D* Vector3D::multiply(double scalar, Vector3D* output) const {
 	output->z = z * scalar;
 	return output;
 }
+
+bool Vector3D::notZero() const {
+	return !(x == 0 && y == 0 && z == 0);
+}

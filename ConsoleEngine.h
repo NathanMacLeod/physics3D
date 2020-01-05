@@ -351,7 +351,7 @@ public:
 		transformation3D::rotatePointAroundXParralelAxis(&p2, -orientationPitch, 0, 0);
 		projectPoint(&p2, fov);
 
-		drawLine(p1.x, p1.y, p2.x, p2.y, PICZEL, white);
+		drawLine(p1.x, p1.y, p2.x, p2.y, PICZEL, red);
 	}
 	
 };

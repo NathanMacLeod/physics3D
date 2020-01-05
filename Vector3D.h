@@ -20,6 +20,7 @@ public:
 	Vector3D* add(const Vector3D vector, Vector3D* output) const;
 	Vector3D* sub(const Vector3D vector, Vector3D* output) const;
 	Vector3D* multiply(double scalar, Vector3D* output) const;
+	bool notZero() const;
 };
 
 #endif
