@@ -225,7 +225,7 @@ int main() {
 		//cameraPos.y = -5;
 		//cameraPos.y = r * sin(queuedTime);
 		//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, 0, 0, cubeCenter.z, dTheta, 0, 0);
-		engine.drawPolygons(*allPolygons, cameraPos, yAng, xAng, 200, true);
+		engine.drawPolygons(*allPolygons, cameraPos, yAng, xAng, 200, false);
 		//engine.draw3DLine(p1, p2, cameraPos, yAng, xAng, 200);
 
 		//engine.drawLine(0, 0, 179, 0, engine.PICZEL, white);
