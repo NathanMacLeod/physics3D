@@ -27,17 +27,17 @@ double PhysicsEngine::getTimestep() {
 	return timestep;
 }
 
-void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, RigidSurface* colSurface, Point3D* colPoint, double restitutionFactor, double colDepth) {
+void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Point3D* colPoint, double restitutionFactor, double colDepth) {
 	double restitution = collidee->getRestitution() * restitutionFactor;
-	Vector3D nV(*(colSurface->getPoints()->at(0)), *(colSurface->getNormalVectorPoint()));
+	//Vector3D nV(*(colSurface->getPoints()->at(0)), *(colSurface->getNormalVectorPoint()));
 	//if (nV.y >= 0 && collidee->getInverseMass() == 0)
 	//	std::cout << colSurface->getPoints()->at(0)->y << "\n";
 	//push bodies apart
 
-	Vector3D p1ToP(*(colSurface->getPoints()->at(0)), *colPoint);
-	double distToPlane = abs(nV.dotProduct(p1ToP));
-	double dCldr = distToPlane / (1 + collider->getMass() * collidee->getInverseMass());
-	double dCldee = distToPlane - dCldr;
+	//Vector3D p1ToP(*(colSurface->getPoints()->at(0)), *colPoint);
+	//double distToPlane = abs(nV.dotProduct(p1ToP));
+	double dCldr = colDepth / (1 + collider->getMass() * collidee->getInverseMass());
+	double dCldee = colDepth - dCldr;
 	Vector3D cldeTransform;
 	nV.multiply(-dCldee, &cldeTransform);
 	Vector3D cldrTransform;
@@ -119,20 +119,21 @@ void PhysicsEngine::iterateEngineTimestep() {
 			for (int i = 0; i < maxCollisions; i++) {
 				Point3D* b1ColPoint = nullptr;
 				RigidSurface* b1ColSurface = nullptr;
-				double b1ColDepth = body1->findCollisionInformationAsCollider(&b1ColPoint, &b1ColSurface, *body2);
+				Vector3D* b1ColNV = nullptr;
+				double b1ColDepth = body1->findCollisionInformationAsCollider(&b1ColPoint, &b1ColNV, *body2);
 				Point3D* b2ColPoint = nullptr;
-				RigidSurface* b2ColSurface = nullptr;
-				double b2ColDepth = body2->findCollisionInformationAsCollider(&b2ColPoint, &b2ColSurface, *body1);
+				Vector3D* b2ColNV = nullptr;
+				double b2ColDepth = body2->findCollisionInformationAsCollider(&b2ColPoint, &b2ColNV, *body1);
 				RigidBody* collider = nullptr;
 				RigidBody* collidee = nullptr;
 				Point3D* colPoint = nullptr;
-				RigidSurface* colSurface = nullptr;
+				Vector3D* colNV = nullptr;
 				double colDepth = 0;
 				if (b1ColDepth > b2ColDepth) {
 					collider = body1;
 					collidee = body2;
 					colPoint = b1ColPoint;
-					colSurface = b1ColSurface;
+					colNV = b1ColNV;
 					colDepth = b1ColDepth;
 				}
 				else {
@@ -141,10 +142,10 @@ void PhysicsEngine::iterateEngineTimestep() {
 					collider = body2;
 					collidee = body1;
 					colPoint = b2ColPoint;
-					colSurface = b2ColSurface;
+					colNV = b2ColNV;
 					colDepth = b2ColDepth;
 				}
-				resolveImpulses(collider, collidee, colSurface, colPoint, pow(restitutionReductionFactor, i), colDepth);
+				resolveImpulses(collider, collidee, *colNV, colPoint, pow(restitutionReductionFactor, i), colDepth);
 			}
 		}
 	}

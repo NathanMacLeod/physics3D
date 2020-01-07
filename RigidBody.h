@@ -28,6 +28,7 @@ class RigidBody {
 	void createReferenceCopies();
 	bool getPointInsideBody(const Point3D point, const std::vector<Point3D*> vectorPositions, const std::vector<Vector3D*> normalVectors);
 	Vector3D* findVectorRelativeToBodyFrame(const Vector3D vector, Vector3D* output);
+	bool verifyCollisionPointNotExiting(const RigidBody body, const Vector3D normalVector, const Point3D point);
 public:
 	double* inertiaTensor; //remove
 	RigidBody(const std::vector<RigidSurface*>& surfaces, double density, double friction, double resistution, bool fixed); //not done
@@ -35,7 +36,7 @@ public:
 	bool bodiesInCollisionRange(RigidBody& body);
 	double getCollisionRadius() const;
 	double getCollisionRadiusSquared() const;
-	double findCollisionInformationAsCollider(Point3D** collidingPoint, RigidSurface** collidngSurface, RigidBody& body);
+	double findCollisionInformationAsCollider(Point3D** collidingPoint, Vector3D** colNormalVector, RigidBody& body);
 	bool getPointInsideBody(const Point3D point);
 	std::vector<RigidSurface*>* getSurfaces();
 	Point3D* getCenterOfMass();
