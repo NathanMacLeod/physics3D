@@ -435,7 +435,7 @@ bool RigidBody::verifyCollisionPointNotExiting(const RigidBody body, const Vecto
 	return vPRelative.dotProduct(normalVector) < 0;
 }
 
-double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, Vector3D** collidingNV, RigidBody& body) {
+double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, Vector3D** collidingNV, RigidBody& body, bool* edgeCollision) {
 	Point3D* deepestPenetratingPoint = nullptr;
 	Vector3D* deepestPenetratingNV = nullptr;
 	double deepestPenetrationDepth = -1;
@@ -579,6 +579,41 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 					for (int i = 0; i < potColSurface->getPoints()->size(); i++) {
 						Point3D* lp1 = potColSurface->getPoints()->at(i);
 						Point3D* lp2 = (i == potColSurface->getPoints()->size() - 1) ? potColSurface->getPoints()->at(0) : potColSurface->getPoints()->at(i + 1);
+						Vector3D lp1lp2(*lp1, *lp2);
+						Vector3D perpDirection;
+						lp1lp2.crossProduct(p1p2, &perpDirection);
+						perpDirection.getUnitVector(&perpDirection);
+						Vector3D p1Lp1(*p1, *lp1);
+						double penDepth = p1Lp1.dotProduct(perpDirection);
+						if (penDepth > 0) {
+							perpDirection.multiply(-1, &perpDirection);
+							penDepth *= -1;
+						}
+						if (penDepth <= deepestPenetrationDepth)
+							continue;
+						double lp1I = p1Lp1.dotProduct(p1p2Unit);
+						Vector3D p1Lp2(*p1, *lp2);
+						double lp2I = p1Lp2.dotProduct(p1p2Unit);
+						Vector3D vertAxis;
+						perpDirection.crossProduct(p1p2Unit, &vertAxis);
+						double lp1J = vertAxis.dotProduct(p1Lp1);
+						double lp2J = vertAxis.dotProduct(p1Lp2);
+						double iInt = lp1I - lp1J * (lp2I - lp1I) / (lp2J - lp1J);
+						if (iInt < 0 || iInt > p1p2.getMagnitude())
+							continue;
+						Vector3D p1ToCol;
+						p1p2Unit.multiply(iInt, &p1ToCol);
+						Vector3D perpComp;
+						perpDirection.multiply(penDepth, &perpComp);
+						p1ToCol.add(perpComp, &p1ToCol);
+
+						Point3D* colPoint = new Point3D(p1->x + p1ToCol.x, p1->y + p1ToCol.y, p1->z + p1ToCol.z);
+						if (!verifyCollisionPointNotExiting(body, perpDirection, *colPoint))
+							continue;
+						*edgeCollision = true;
+						deepestPenetratingPoint = colPoint;
+						deepestPenetrationDepth = penDepth;
+						deepestPenetratingNV = new Vector3D(perpDirection.x, perpDirection.y, perpDirection.z);
 					}
 				}
 			}

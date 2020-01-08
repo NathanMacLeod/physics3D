@@ -120,14 +120,17 @@ void PhysicsEngine::iterateEngineTimestep() {
 				Point3D* b1ColPoint = nullptr;
 				RigidSurface* b1ColSurface = nullptr;
 				Vector3D* b1ColNV = nullptr;
-				double b1ColDepth = body1->findCollisionInformationAsCollider(&b1ColPoint, &b1ColNV, *body2);
+				bool b1EdgeCollision = false;
+				double b1ColDepth = body1->findCollisionInformationAsCollider(&b1ColPoint, &b1ColNV, *body2, &b1EdgeCollision);
 				Point3D* b2ColPoint = nullptr;
 				Vector3D* b2ColNV = nullptr;
-				double b2ColDepth = body2->findCollisionInformationAsCollider(&b2ColPoint, &b2ColNV, *body1);
+				bool b2EdgeCollision = false;
+				double b2ColDepth = body2->findCollisionInformationAsCollider(&b2ColPoint, &b2ColNV, *body1, &b2EdgeCollision);
 				RigidBody* collider = nullptr;
 				RigidBody* collidee = nullptr;
 				Point3D* colPoint = nullptr;
 				Vector3D* colNV = nullptr;
+				bool edgeCollision;
 				double colDepth = 0;
 				if (b1ColDepth > b2ColDepth) {
 					collider = body1;
@@ -135,6 +138,7 @@ void PhysicsEngine::iterateEngineTimestep() {
 					colPoint = b1ColPoint;
 					colNV = b1ColNV;
 					colDepth = b1ColDepth;
+					edgeCollision = b1EdgeCollision;
 				}
 				else {
 					if (b2ColDepth == -1)
@@ -144,8 +148,11 @@ void PhysicsEngine::iterateEngineTimestep() {
 					colPoint = b2ColPoint;
 					colNV = b2ColNV;
 					colDepth = b2ColDepth;
+					edgeCollision = b2EdgeCollision;
 				}
 				resolveImpulses(collider, collidee, *colNV, colPoint, pow(restitutionReductionFactor, i), colDepth);
+				if (edgeCollision) //edge collisions generate new point, needs to be deleted
+					delete colPoint;
 			}
 		}
 	}
