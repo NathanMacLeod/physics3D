@@ -115,7 +115,7 @@ void PhysicsEngine::iterateEngineTimestep() {
 			//resolve up to n collisions between the bodies.
 			double restitutionMultiplier = 1;
 			double restitutionReductionFactor = 0.6;
-			double maxCollisions = 5;
+			double maxCollisions = 4;
 			for (int i = 0; i < maxCollisions; i++) {
 				Point3D* b1ColPoint = nullptr;
 				RigidSurface* b1ColSurface = nullptr;

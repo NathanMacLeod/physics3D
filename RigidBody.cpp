@@ -109,13 +109,15 @@ void RigidBody::findBodyMassAndInertia(double particleMass, double particleSpaci
 			double bound1;
 			double bound2;
 			bool intersectFound = false;
+			bool intersect2Found = false;
 			for (int i = 0; i < surface->getPoints()->size(); i++) {
 				Point3D* p1 = surface->getPoints()->at(i);
 				Point3D* p2 = ((i == surface->getPoints()->size() - 1)? surface->getPoints()->at(0) : surface->getPoints()->at(i + 1));
-				if ((p1->x > x&& p2->x < x) || (p1->x < x && p2->x > x)) {
+				if ((p1->x > x && p2->x < x) || (p1->x < x && p2->x > x)) {
 					double intersectYVal = p1->y - (p1->x - x) * (p2->y - p1->y) / (p2->x - p1->x);
 					if (intersectFound) {
 						bound2 = intersectYVal;
+						intersect2Found = true;
 						break;
 					}
 					else {
@@ -124,7 +126,7 @@ void RigidBody::findBodyMassAndInertia(double particleMass, double particleSpaci
 					}
 				}
 			}
-			if (!intersectFound)
+			if (!intersectFound || !intersect2Found)
 				continue;
 
 			if (bound1 == bound2)
@@ -535,7 +537,7 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 			}
 		}
 	}
-	if (deepestPenetrationDepth == -1) {
+	if (deepestPenetrationDepth == -1 && getInverseMass() != 0) {
 		//check for edge collisions
 		for (RigidSurface* surface : surfaces) {
 			for (int i = 0; i < surface->getPoints()->size(); i++) {
@@ -544,19 +546,25 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 				Vector3D p1p2(*p1, *p2);
 				Vector3D p1p2Unit;
 				p1p2.getUnitVector(&p1p2Unit);
-
+				double leastDepthPenetration = -1;
 				for (RigidSurface* potColSurface : *(body.getSurfaces())) {
 					Point3D* surfP1 = potColSurface->getPoints()->at(0);
+					Vector3D normalVector(*surfP1, *(potColSurface->getNormalVectorPoint()));
 					Vector3D p1Sp1(*p1, *surfP1);
+					Vector3D p2Sp1(*p2, *surfP1);
+					
+					if (p1Sp1.dotProduct(normalVector) * p2Sp1.dotProduct(normalVector) > 0)
+						continue;
+
 					Vector3D axisJ;
 					Vector3D perpComp;
 					p1p2Unit.multiply(p1p2Unit.dotProduct(p1Sp1), &perpComp);
 					p1Sp1.sub(perpComp, &axisJ);
 					Vector3D axisI;
 					axisJ.crossProduct(p1p2Unit, &axisI);
-					int pointsAbove = 0;
+					int pointsAbove = 1;
 					int pointsBelow = 0;
-					for (int i = 1; i < potColSurface->getPoints()->size() - 1; i++) {
+ 					for (int i = 1; i < potColSurface->getPoints()->size() - 1; i++) {
 						Vector3D lineP1(*p1, *(potColSurface->getPoints()->at(i)));
 						Vector3D lineP2(*p1, *(potColSurface->getPoints()->at(i + 1)));
 						double p1I = axisI.dotProduct(lineP1);
@@ -566,7 +574,7 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 							continue;
 						double p1J = axisJ.dotProduct(lineP1);
 						double p2J = axisJ.dotProduct(lineP2);
-						double jInt = p1I * (p2J - p1J) / (p2I - p1I);
+						double jInt = p1J - p1I * (p2J - p1J) / (p2I - p1I);
 						if (jInt > 0) {
 							pointsAbove++;
 						}
@@ -583,13 +591,16 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 						Vector3D perpDirection;
 						lp1lp2.crossProduct(p1p2, &perpDirection);
 						perpDirection.getUnitVector(&perpDirection);
+						if (perpDirection.x > 0.7 && perpDirection.y < -0.7) {
+							std::cout << "";
+						}
 						Vector3D p1Lp1(*p1, *lp1);
 						double penDepth = p1Lp1.dotProduct(perpDirection);
-						if (penDepth > 0) {
+						if (penDepth < 0) {
 							perpDirection.multiply(-1, &perpDirection);
 							penDepth *= -1;
 						}
-						if (penDepth <= deepestPenetrationDepth)
+						if ((leastDepthPenetration != -1 && penDepth >= leastDepthPenetration) || penDepth > 0.8)
 							continue;
 						double lp1I = p1Lp1.dotProduct(p1p2Unit);
 						Vector3D p1Lp2(*p1, *lp2);
@@ -611,6 +622,7 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 						if (!verifyCollisionPointNotExiting(body, perpDirection, *colPoint))
 							continue;
 						*edgeCollision = true;
+						leastDepthPenetration = penDepth;
 						deepestPenetratingPoint = colPoint;
 						deepestPenetrationDepth = penDepth;
 						deepestPenetratingNV = new Vector3D(perpDirection.x, perpDirection.y, perpDirection.z);

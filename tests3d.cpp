@@ -118,8 +118,8 @@ int main() {
 		t -= timePassed.count();
 		if (t <= 0) {
 			t = newCubeTime;
-			double x = 0;
-			double y = -30;
+			double x = 0;//55;
+			double y = -80.5;
 			double z = 100;
 			std::vector<Polygon3D*>* b1polygons = createBox(10, 10, 10, x, y, z);
 			
@@ -130,9 +130,12 @@ int main() {
 				points.push_back(polygon->p2);
 				points.push_back(polygon->p3);
 			}
-			Vector3D axis(1, 1, 1);
+			Vector3D axis(0, 1, 0);
 			axis.getUnitVector(&axis);
-			transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, x, y, z, 3.14159 / 2.0);
+			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, x, y, z, 3.14159 / 4.0);
+			Vector3D axis2(0, 0, 1);
+			axis2.getUnitVector(&axis2);
+			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis2, x, y, z, -3.14159 / 4.0);
 			RigidBody* b1 = new RigidBody(*createRigidBodyFromPolygons(*b1polygons), 1, 0.3, 0.3, false);
 			pEngine.addRigidBody(b1);
 			delete b1polygons;
@@ -225,7 +228,7 @@ int main() {
 		//cameraPos.y = -5;
 		//cameraPos.y = r * sin(queuedTime);
 		//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, 0, 0, cubeCenter.z, dTheta, 0, 0);
-		engine.drawPolygons(*allPolygons, cameraPos, yAng, xAng, 200, false);
+		engine.drawPolygons(*allPolygons, cameraPos, yAng, xAng, 200, true);
 		//engine.draw3DLine(p1, p2, cameraPos, yAng, xAng, 200);
 
 		//engine.drawLine(0, 0, 179, 0, engine.PICZEL, white);
