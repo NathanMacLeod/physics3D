@@ -107,6 +107,7 @@ int main() {
 	bool xHeld = false;
 	bool v;
 	bool vHeld = false;
+	bool placeBlock = false;
 	
 	double newCubeTime = 2;
 	double t = newCubeTime;
@@ -116,7 +117,8 @@ int main() {
 		t1 = t2;
 		queuedTime += timePassed.count();
 		t -= timePassed.count();
-		if (t <= 0) {
+		if (placeBlock) {
+			placeBlock = false;
 			t = newCubeTime;
 			double x = 0;//55;
 			double y = -80.5;
@@ -205,17 +207,18 @@ int main() {
 		}
 		else {
 			xHeld = false;
-		}
+		}*/
 		if (v) {
 			//cameraPos.y += dTheta * 10;
 			if (!vHeld) {
-				transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, 0, 0, cubeCenter.z + 20, 3.1415926535 / 2, 0, 0);
+				placeBlock = true;
 				vHeld = true;
 			}
 		}
 		else {
+			placeBlock = false;
 			vHeld = false;
-		}*/
+		}
 		//transformation3D::rotatePointsAroundYParralelAxis(&points, dTheta/3.0, 0, cubeCenter.z);
 		//transformation3D::rotatePointsAroundXParralelAxis(&points, dTheta / 1.5, 0, cubeCenter.z);
 			

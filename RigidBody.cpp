@@ -545,7 +545,14 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 				Point3D* p2 = (i == surface->getPoints()->size() - 1)? surface->getPoints()->at(0) : surface->getPoints()->at(i + 1);
 				Vector3D p1p2(*p1, *p2);
 				Vector3D p1p2Unit;
-				p1p2.getUnitVector(&p1p2Unit);
+				p1p2.multiply(surface->getInverseSegmentMagnitude(i), &p1p2Unit);
+				Vector3D p1Com(*p1, *(body.getCenterOfMass()));
+				Vector3D parralelComp;
+				p1p2Unit.multiply(p1Com.dotProduct(p1p2Unit), &parralelComp);
+				Vector3D distComp;
+				p1Com.sub(parralelComp, &distComp);
+				if (distComp.getMagnitudeSquared() > body.getCollisionRadiusSquared())
+					continue;
 				double leastDepthPenetration = -1;
 				for (RigidSurface* potColSurface : *(body.getSurfaces())) {
 					Point3D* surfP1 = potColSurface->getPoints()->at(0);
