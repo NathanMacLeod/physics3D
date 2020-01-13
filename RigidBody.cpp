@@ -441,6 +441,7 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 	Point3D* deepestPenetratingPoint = nullptr;
 	Vector3D* deepestPenetratingNV = nullptr;
 	double deepestPenetrationDepth = -1;
+	bool pointWasInside = false;
 	for (RigidSurface* surface : surfaces) {
 		for (Point3D* p : *(surface->getPoints())) {
 			//check if point is within collision radius to ignore points that cant possibly be inside
@@ -450,6 +451,7 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 			if (!body.getPointInsideBody(*p)) {
 				continue;
 			}
+			pointWasInside = true;
 
 			//point can potentially be a collision point, now check to see if the ray from the center of mass to the point
 			//intersects any surfaces on body
@@ -537,7 +539,7 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 			}
 		}
 	}
-	if (deepestPenetrationDepth == -1 && getInverseMass() != 0) {
+	if (deepestPenetrationDepth == -1 && getInverseMass() != 0 && !pointWasInside) {
 		//check for edge collisions
 		for (RigidSurface* surface : surfaces) {
 			for (int i = 0; i < surface->getPoints()->size(); i++) {
@@ -607,7 +609,7 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 							perpDirection.multiply(-1, &perpDirection);
 							penDepth *= -1;
 						}
-						if ((leastDepthPenetration != -1 && penDepth >= leastDepthPenetration) || penDepth > 0.8)
+						if ((leastDepthPenetration != -1 && penDepth >= leastDepthPenetration) || penDepth > 1.5)
 							continue;
 						double lp1I = p1Lp1.dotProduct(p1p2Unit);
 						Vector3D p1Lp2(*p1, *lp2);
