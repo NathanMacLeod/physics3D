@@ -67,8 +67,8 @@ int main() {
 
 	std::vector<Polygon3D*>* b1polygons = createBox(10, 10, 10, 0, -23.6, 100);
 	std::vector<Polygon3D*>* b2polygons = createBox(100, 5, 100, 0, 30, 100);
-	RigidBody* b1 = new RigidBody(*createRigidBodyFromPolygons(*b1polygons), 1, 0.4, 0.3, false);
-	RigidBody* b2 = new RigidBody(*createRigidBodyFromPolygons(*b2polygons), 1, 0.4, 0.3, true);
+	RigidBody* b1 = new RigidBody(*createRigidBodyFromPolygons(*b1polygons), 1, 1, 0.3, false);
+	RigidBody* b2  = new RigidBody(*createRigidBodyFromPolygons(*b2polygons), 1, 0.5, 0.3, true);
 
 	Vector3D axis1(1, 0, 0);
 	Vector3D axis2(0, 1, 0);
@@ -121,7 +121,7 @@ int main() {
 			placeBlock = false;
 			t = newCubeTime;
 			double x = 0;//55;
-			double y = -80.5;
+			double y = -20.5;
 			double z = 100;
 			std::vector<Polygon3D*>* b1polygons = createBox(10, 10, 10, x, y, z);
 			
@@ -138,7 +138,7 @@ int main() {
 			Vector3D axis2(0, 0, 1);
 			axis2.getUnitVector(&axis2);
 			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis2, x, y, z, -3.14159 / 4.0);
-			RigidBody* b1 = new RigidBody(*createRigidBodyFromPolygons(*b1polygons), 1, 0.3, 0.3, false);
+			RigidBody* b1 = new RigidBody(*createRigidBodyFromPolygons(*b1polygons), 1, 0.5, 0.3, false);
 			pEngine.addRigidBody(b1);
 			delete b1polygons;
 		}

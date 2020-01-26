@@ -65,7 +65,7 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 	double numerator = -(restitution + 1) * nV.dotProduct(velRel);
 	double denomenator = (collider->getInverseMass() + collidee->getInverseMass() + rCldrXn.getMagnitudeSquared() * invICldr + rCldeXn.getMagnitudeSquared() * invIClde);
 
-	double impulseMagnitude = numerator / denomenator;
+	double impulseMagnitude = abs(numerator / denomenator);
 	Vector3D impulse;
 	nV.multiply(impulseMagnitude, &impulse);
 
@@ -83,15 +83,20 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 		Vector3D rCldeXk;
 		rCldr.crossProduct(k, &rCldeXk);
 		denomenator = (collider->getInverseMass() + collidee->getInverseMass() + rCldrXk.getMagnitudeSquared() * invICldr + rCldeXk.getMagnitudeSquared() * invIClde);
-		double frictionImpMag = numerator / denomenator;
-		if (abs(frictionImpMag) > abs(impulseMagnitude)* collidee->getFriction())
+		double frictionImpMag = abs(numerator / denomenator);
+		bool overload = false;
+		if (frictionImpMag > impulseMagnitude * collidee->getFriction()) {
 			frictionImpMag = impulseMagnitude * collidee->getFriction();
-		k.multiply(-frictionImpMag, &frictionImpulse);
+			overload = true;
+		}
+		k.multiply(frictionImpMag, &frictionImpulse);
+		if(!overload)
+			std::cout << frictionImpulse.x << " " << frictionImpulse.y << " " << frictionImpulse.z << " " << overload << "\n";
 	}
 
-	collidee->applyImpulseAtPosition(impulse, *colPoint);
-	impulse.multiply(-1, &impulse);
 	collider->applyImpulseAtPosition(impulse, *colPoint);
+	impulse.multiply(-1, &impulse);
+	collidee->applyImpulseAtPosition(impulse, *colPoint);
 
 	if (frictionImpulse.notZero()) {
 		collider->applyImpulseAtPosition(frictionImpulse, *colPoint);
@@ -115,7 +120,7 @@ void PhysicsEngine::iterateEngineTimestep() {
 			//resolve up to n collisions between the bodies.
 			double restitutionMultiplier = 1;
 			double restitutionReductionFactor = 0.6;
-			double maxCollisions = 4;
+			double maxCollisions = 3;
 			for (int i = 0; i < maxCollisions; i++) {
 				Point3D* b1ColPoint = nullptr;
 				RigidSurface* b1ColSurface = nullptr;
@@ -150,7 +155,8 @@ void PhysicsEngine::iterateEngineTimestep() {
 					colDepth = b2ColDepth;
 					edgeCollision = b2EdgeCollision;
 				}
-				resolveImpulses(collider, collidee, *colNV, colPoint, pow(restitutionReductionFactor, i), colDepth);
+				resolveImpulses(collider, collidee, *colNV, colPoint, restitutionMultiplier, colDepth);
+				restitutionMultiplier *= restitutionReductionFactor;
 				if (edgeCollision) //edge collisions generate new point, needs to be deleted
 					delete colPoint;
 			}
