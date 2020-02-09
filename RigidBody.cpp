@@ -353,6 +353,10 @@ double RigidBody::getCollisionRadius() const {
 	return collisionRadius;
 }
 
+Vector3D* RigidBody::getAngularVelocity() {
+	return &angularVelocity;
+}
+
 double RigidBody::getMass() const {
 	return mass;
 }

@@ -3,7 +3,7 @@
 
 
 const double GRAV_DEFAULT = 20;
-const double TIMESTEP_DEFAULT = 0.03;
+const double TIMESTEP_DEFAULT = 0.015;
 
 PhysicsEngine::PhysicsEngine() {
 	gravity.y = GRAV_DEFAULT;
@@ -13,6 +13,7 @@ PhysicsEngine::PhysicsEngine() {
 PhysicsEngine::PhysicsEngine(double timestep, const Vector3D& gravity) {
 	this->gravity = gravity;
 	this->timestep = timestep;
+	reductionVel = 2 * timestep * timestep * gravity.getMagnitudeSquared();
 }
 
 void PhysicsEngine::addRigidBody(RigidBody* body) {
@@ -62,6 +63,10 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 	Vector3D rCldrXn;
 	rCldr.crossProduct(nV, &rCldrXn);
 
+	if (velRel.getMagnitudeSquared() < reductionVel) {
+		//restitution = 0;
+	}
+
 	double numerator = -(restitution + 1) * nV.dotProduct(velRel);
 	double denomenator = (collider->getInverseMass() + collidee->getInverseMass() + rCldrXn.getMagnitudeSquared() * invICldr + rCldeXn.getMagnitudeSquared() * invIClde);
 
@@ -94,9 +99,11 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 	collider->applyImpulseAtPosition(impulse, *colPoint);
 
 	if (frictionImpulse.notZero()) {
+		double angVelBefore = collider->getAngularVelocity()->getMagnitudeSquared();
 		collider->applyImpulseAtPosition(frictionImpulse, *colPoint);
 		frictionImpulse.multiply(-1, &frictionImpulse);
 		collidee->applyImpulseAtPosition(frictionImpulse, *colPoint);
+		double angVelAfter = collider->getAngularVelocity()->getMagnitudeSquared();
 	}
 }
 
