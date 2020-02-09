@@ -56,7 +56,7 @@ bool RigidBody::getFixed() {
 }
 
 
-//todo: do this is not dumb way
+//todo: do this in not dumb way
 void RigidBody::findBodyMassAndInertia(double particleMass, double particleSpacing) {
 	double lowestX = 0;
 	double greatestX = 0;
@@ -445,7 +445,7 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 	Point3D* deepestPenetratingPoint = nullptr;
 	Vector3D* deepestPenetratingNV = nullptr;
 	double deepestPenetrationDepth = -1;
-	bool pointWasInside = false;
+	bool pointInside = false;
 	for (RigidSurface* surface : surfaces) {
 		for (Point3D* p : *(surface->getPoints())) {
 			//check if point is within collision radius to ignore points that cant possibly be inside
@@ -455,7 +455,7 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 			if (!body.getPointInsideBody(*p)) {
 				continue;
 			}
-			pointWasInside = true;
+			pointInside = true;
 
 			//point can potentially be a collision point, now check to see if the ray from the center of mass to the point
 			//intersects any surfaces on body
@@ -543,7 +543,7 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 			}
 		}
 	}
-	if (deepestPenetrationDepth == -1 && getInverseMass() != 0 && !pointWasInside) {
+	if (deepestPenetrationDepth == -1 && getInverseMass() != 0 && !pointInside) {
 		//check for edge collisions
 		for (RigidSurface* surface : surfaces) {
 			for (int i = 0; i < surface->getPoints()->size(); i++) {
@@ -604,15 +604,13 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 						Vector3D perpDirection;
 						lp1lp2.crossProduct(p1p2, &perpDirection);
 						perpDirection.getUnitVector(&perpDirection);
-						if (perpDirection.x > 0.7 && perpDirection.y < -0.7) {
-							std::cout << "";
-						}
 						Vector3D p1Lp1(*p1, *lp1);
 						double penDepth = p1Lp1.dotProduct(perpDirection);
 						if (penDepth < 0) {
 							perpDirection.multiply(-1, &perpDirection);
 							penDepth *= -1;
 						}
+						//choice of 1.5 arbitrary, tries to avoid improper collisions
 						if ((leastDepthPenetration != -1 && penDepth >= leastDepthPenetration) || penDepth > 1.5)
 							continue;
 						double lp1I = p1Lp1.dotProduct(p1p2Unit);
@@ -644,7 +642,9 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 			}
 		}
 	}
-		*collidingPoint = deepestPenetratingPoint;
-		*collidingNV = deepestPenetratingNV;
-		return deepestPenetrationDepth;
+	*collidingPoint = deepestPenetratingPoint;
+	*collidingNV = deepestPenetratingNV;
+	if (deepestPenetrationDepth != -1)
+		deepestPenetrationDepth = 0.1;
+	return deepestPenetrationDepth;
 }
