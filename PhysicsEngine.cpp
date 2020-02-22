@@ -13,6 +13,7 @@ PhysicsEngine::PhysicsEngine() {
 PhysicsEngine::PhysicsEngine(double timestep, const Vector3D& gravity) {
 	this->gravity = gravity;
 	this->timestep = timestep;
+	reductionVel = 2 * timestep * timestep * gravity.getMagnitudeSquared();
 }
 
 void PhysicsEngine::addRigidBody(RigidBody* body) {
@@ -61,6 +62,10 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 	rClde.crossProduct(nV, &rCldeXn);
 	Vector3D rCldrXn;
 	rCldr.crossProduct(nV, &rCldrXn);
+
+	if (velRel.getMagnitudeSquared() < reductionVel) {
+		//restitution = 0;
+	}
 
 	double numerator = -(restitution + 1) * nV.dotProduct(velRel);
 	double denomenator = (collider->getInverseMass() + collidee->getInverseMass() + rCldrXn.getMagnitudeSquared() * invICldr + rCldeXn.getMagnitudeSquared() * invIClde);
@@ -118,6 +123,7 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 		comP.crossProduct(pVel, &pRot);
 		std::cout << "pRotVel: " << pRot.dotProduct(up) << "\n";*/
 
+		double angVelBefore = collider->getAngularVelocity()->getMagnitudeSquared();
 		collider->applyImpulseAtPosition(frictionImpulse, *colPoint);
 
 		
@@ -137,6 +143,7 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 
 		frictionImpulse.multiply(-1, &frictionImpulse);
 		collidee->applyImpulseAtPosition(frictionImpulse, *colPoint);
+		double angVelAfter = collider->getAngularVelocity()->getMagnitudeSquared();
 	}
 }
 

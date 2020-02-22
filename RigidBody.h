@@ -36,6 +36,7 @@ public:
 	bool bodiesInCollisionRange(RigidBody& body);
 	double getCollisionRadius() const;
 	double getCollisionRadiusSquared() const;
+	Vector3D* getAngularVelocity();
 	double findCollisionInformationAsCollider(Point3D** collidingPoint, Vector3D** colNormalVector, RigidBody& body, bool* edgeCollision);
 	bool getPointInsideBody(const Point3D point);
 	std::vector<RigidSurface*>* getSurfaces();
