@@ -3,7 +3,7 @@
 
 
 const double GRAV_DEFAULT = 20;
-const double TIMESTEP_DEFAULT = 0.03;
+const double TIMESTEP_DEFAULT = 0.015;
 
 PhysicsEngine::PhysicsEngine() {
 	gravity.y = GRAV_DEFAULT;
@@ -84,22 +84,57 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 		rCldr.crossProduct(k, &rCldeXk);
 		denomenator = (collider->getInverseMass() + collidee->getInverseMass() + rCldrXk.getMagnitudeSquared() * invICldr + rCldeXk.getMagnitudeSquared() * invIClde);
 		double frictionImpMag = abs(numerator / denomenator);
-		bool overload = false;
 		if (frictionImpMag > impulseMagnitude * collidee->getFriction()) {
 			frictionImpMag = impulseMagnitude * collidee->getFriction();
-			overload = true;
 		}
 		k.multiply(frictionImpMag, &frictionImpulse);
-		if(!overload)
-			std::cout << frictionImpulse.x << " " << frictionImpulse.y << " " << frictionImpulse.z << " " << overload << "\n";
 	}
+	/*Vector3D up(0, -1, 0);
+
+	Vector3D pVel;
+	collider->getVelocityOfPoint(*colPoint, &pVel);
+	Vector3D pRot;
+	Vector3D comP(*(collider->getCenterOfMass()), *colPoint);
+	comP.getUnitVector(&comP);
+	comP.crossProduct(pVel, &pRot);
+	std::cout << "pRotVel: " << pRot.dotProduct(up) << "\n";
+	std::cout << "curr veloc: " << collider->getAngularVelocity()->dotProduct(up) << "\n";*/
 
 	collider->applyImpulseAtPosition(impulse, *colPoint);
+
+	//std::cout << "veloc after: " << collider->getAngularVelocity()->dotProduct(up) << "\n\n";
+	
 	impulse.multiply(-1, &impulse);
 	collidee->applyImpulseAtPosition(impulse, *colPoint);
 
 	if (frictionImpulse.notZero()) {
+		
+		/*std::cout << "curr veloc: " << collider->getAngularVelocity()->dotProduct(up) << "\n";
+		Vector3D pVel;
+		collider->getVelocityOfPoint(*colPoint, &pVel);
+		Vector3D pRot;
+		Vector3D comP(*(collider->getCenterOfMass()), *colPoint);
+		comP.getUnitVector(&comP);
+		comP.crossProduct(pVel, &pRot);
+		std::cout << "pRotVel: " << pRot.dotProduct(up) << "\n";*/
+
 		collider->applyImpulseAtPosition(frictionImpulse, *colPoint);
+
+		
+		
+		//Vector3D rotAxis;
+		//comP.crossProduct(frictionImpulse, &rotAxis);
+		
+		//std::cout << "dot product: " << rotAxis.dotProduct(up) << "\n";
+		//std::cout << "veloc after: " << collider->getAngularVelocity()->dotProduct(up) << "\n";
+
+		//std::cout << "vel rel: " << k.x << " " << k.y << " " << k.z << "\n";
+		//Vector3D frictionUnit;
+		//frictionImpulse.getUnitVector(&frictionUnit);
+		//std::cout << "impulse: " << frictionUnit.x << " " << frictionUnit.y << " " << frictionUnit.z << "\n";
+
+		//std::cout << "/t/t-------------------\n";
+
 		frictionImpulse.multiply(-1, &frictionImpulse);
 		collidee->applyImpulseAtPosition(frictionImpulse, *colPoint);
 	}
@@ -120,7 +155,7 @@ void PhysicsEngine::iterateEngineTimestep() {
 			//resolve up to n collisions between the bodies.
 			double restitutionMultiplier = 1;
 			double restitutionReductionFactor = 0.6;
-			double maxCollisions = 3;
+			double maxCollisions = 1;
 			for (int i = 0; i < maxCollisions; i++) {
 				Point3D* b1ColPoint = nullptr;
 				RigidSurface* b1ColSurface = nullptr;

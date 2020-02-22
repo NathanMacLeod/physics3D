@@ -68,7 +68,7 @@ int main() {
 	std::vector<Polygon3D*>* b1polygons = createBox(10, 10, 10, 0, -23.6, 100);
 	std::vector<Polygon3D*>* b2polygons = createBox(100, 5, 100, 0, 30, 100);
 	RigidBody* b1 = new RigidBody(*createRigidBodyFromPolygons(*b1polygons), 1, 1, 0.3, false);
-	RigidBody* b2  = new RigidBody(*createRigidBodyFromPolygons(*b2polygons), 1, 0.5, 0.3, true);
+	RigidBody* b2  = new RigidBody(*createRigidBodyFromPolygons(*b2polygons), 1, 0.3, 0.3, true);
 
 	Vector3D axis1(1, 0, 0);
 	Vector3D axis2(0, 1, 0);

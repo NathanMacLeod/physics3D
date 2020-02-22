@@ -40,6 +40,7 @@ public:
 	bool getPointInsideBody(const Point3D point);
 	std::vector<RigidSurface*>* getSurfaces();
 	Point3D* getCenterOfMass();
+	Vector3D* getAngularVelocity();
 	Vector3D* getVelocityOfPointDueToAngularVelocity(const Point3D point, Vector3D* output) const;
 	Vector3D* getVelocityOfPoint(const Point3D point, Vector3D* output) const;
 	void applyImpulseAtPosition(const Vector3D impulse, const Point3D position);
