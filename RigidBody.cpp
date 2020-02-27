@@ -371,10 +371,6 @@ double RigidBody::getCollisionRadiusSquared() const {
 	return collisionRadiusSquared;
 }
 
-Vector3D* RigidBody::getAngularVelocity() {
-	return &angularVelocity;
-}
-
 Point3D* RigidBody::getCenterOfMass() {
 	return &centerOfMass;
 }
@@ -445,10 +441,22 @@ bool RigidBody::verifyCollisionPointNotExiting(const RigidBody body, const Vecto
 	return vPRelative.dotProduct(normalVector) < 0;
 }
 
-double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, Vector3D** collidingNV, RigidBody& body, bool* edgeCollision) {
-	Point3D* deepestPenetratingPoint = nullptr;
-	Vector3D* deepestPenetratingNV = nullptr;
-	double deepestPenetrationDepth = -1;
+RigidBody::ColPointInfo::ColPointInfo(Point3D* point, Vector3D* colNormVector, bool edgeCollision, bool pExiting, double penDepth) {
+	this->point = point;
+	this->colNormVector = colNormVector;
+	this->edgeCollision = edgeCollision;
+	this->penDepth = penDepth;
+	this->pExiting = pExiting;
+}
+
+RigidBody::ColPointInfo::~ColPointInfo() {
+	delete colNormVector;
+	if (edgeCollision) {
+		delete point;
+	}
+}
+
+void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* colOutputs, RigidBody& body) {
 	bool pointInside = false;
 	for (RigidSurface* surface : surfaces) {
 		for (Point3D* p : *(surface->getPoints())) {
@@ -536,18 +544,34 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 			Vector3D p1ToP(*surfaceP1, *p);
 			Vector3D* normalVector = new Vector3D(*surfaceP1, *(nearestPenetratedSurface->getNormalVectorPoint()));
 
-			if(!verifyCollisionPointNotExiting(body, *normalVector, *p))
-				continue;
+			bool pointNotExiting = verifyCollisionPointNotExiting(body, *normalVector, *p);
 
 			double penetrationDepth = abs(p1ToP.dotProduct(*normalVector));
-			if (deepestPenetratingPoint == nullptr || penetrationDepth > deepestPenetrationDepth) {
-				deepestPenetrationDepth = penetrationDepth;
-				deepestPenetratingPoint = p;
-				deepestPenetratingNV = normalVector;
+
+			bool deepestPenPoint = colOutputs->size() == 0 || penetrationDepth > colOutputs->at(0)->penDepth;
+
+			if (!deepestPenPoint && !pointNotExiting)
+				continue; //intersection not worth noting
+
+			ColPointInfo* info = new ColPointInfo(p, normalVector, false, !pointNotExiting, penetrationDepth);
+
+			if (deepestPenPoint) {
+				if (colOutputs->size() != 0) {
+					if (colOutputs->at(0)->pExiting) {
+						delete colOutputs->at(0);
+					}
+					colOutputs->at(0) = info;
+				}
+				else {
+					colOutputs->push_back(info);
+				}
+			}
+			if (pointNotExiting) {
+				colOutputs->push_back(info);
 			}
 		}
 	}
-	if (deepestPenetrationDepth == -1 && getInverseMass() != 0 && !pointInside) {
+	if (getInverseMass() != 0 && !pointInside) {
 		//check for edge collisions
 		for (RigidSurface* surface : surfaces) {
 			for (int i = 0; i < surface->getPoints()->size(); i++) {
@@ -636,19 +660,32 @@ double RigidBody::findCollisionInformationAsCollider(Point3D** collidingPoint, V
 						Point3D* colPoint = new Point3D(p1->x + p1ToCol.x, p1->y + p1ToCol.y, p1->z + p1ToCol.z);
 						if (!verifyCollisionPointNotExiting(body, perpDirection, *colPoint))
 							continue;
-						*edgeCollision = true;
 						leastDepthPenetration = penDepth;
-						deepestPenetratingPoint = colPoint;
-						deepestPenetrationDepth = penDepth;
-						deepestPenetratingNV = new Vector3D(perpDirection.x, perpDirection.y, perpDirection.z);
+						Vector3D* colNV = new Vector3D(perpDirection.x, perpDirection.y, perpDirection.z);
+						ColPointInfo* info = new ColPointInfo(colPoint, colNV, true, false, penDepth);
+						colOutputs->push_back(info);
+						return;
 					}
 				}
 			}
 		}
 	}
-	*collidingPoint = deepestPenetratingPoint;
-	*collidingNV = deepestPenetratingNV;
-	if (deepestPenetrationDepth != -1)
-		deepestPenetrationDepth = 0.1;
-	return deepestPenetrationDepth;
+
+	//sorting the colPoints with bubble sort, deepest penning points are resolved first.
+	if (colOutputs->size() > 1) {
+		int k = 1;
+		bool swp = false;
+		do {
+			bool swp = false;
+			for (int i = 1; i < colOutputs->size() - k; i++) {
+				if (colOutputs->at(i + 1)->penDepth > colOutputs->at(i)->penDepth) {
+					ColPointInfo* tmp = colOutputs->at(i + 1);
+					colOutputs->at(i + 1) = colOutputs->at(i);
+					colOutputs->at(i) = tmp;
+					swp = true;
+				}
+			}
+			k--;
+		} while (swp);
+	}
 }

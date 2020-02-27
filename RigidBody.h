@@ -22,7 +22,7 @@ class RigidBody {
 	double restitution;
 	//double* inertiaTensor
 	bool fixed;
-	
+
 	void findBodyMassAndInertia(double particleMass, double particleDensity);
 	void findCollisionRadius();
 	void createReferenceCopies();
@@ -30,6 +30,19 @@ class RigidBody {
 	Vector3D* findVectorRelativeToBodyFrame(const Vector3D vector, Vector3D* output);
 	bool verifyCollisionPointNotExiting(const RigidBody body, const Vector3D normalVector, const Point3D point);
 public:
+
+	class ColPointInfo {
+	public:
+		Point3D* point;
+		Vector3D* colNormVector;
+		bool edgeCollision;
+		bool pExiting;
+		double penDepth;
+
+		ColPointInfo(Point3D* point, Vector3D* colNormVector, bool edgeCollision, bool pExiting, double penDepth);
+		~ColPointInfo();
+	};
+
 	double* inertiaTensor; //remove
 	RigidBody(const std::vector<RigidSurface*>& surfaces, double density, double friction, double resistution, bool fixed); //not done
 	void recalibrateFromReference();
@@ -37,11 +50,10 @@ public:
 	double getCollisionRadius() const;
 	double getCollisionRadiusSquared() const;
 	Vector3D* getAngularVelocity();
-	double findCollisionInformationAsCollider(Point3D** collidingPoint, Vector3D** colNormalVector, RigidBody& body, bool* edgeCollision);
+	void findCollisionInformationAsCollider(std::vector<ColPointInfo*>* colOutputs, RigidBody& body);
 	bool getPointInsideBody(const Point3D point);
 	std::vector<RigidSurface*>* getSurfaces();
 	Point3D* getCenterOfMass();
-	Vector3D* getAngularVelocity();
 	Vector3D* getVelocityOfPointDueToAngularVelocity(const Point3D point, Vector3D* output) const;
 	Vector3D* getVelocityOfPoint(const Point3D point, Vector3D* output) const;
 	void applyImpulseAtPosition(const Vector3D impulse, const Point3D position);

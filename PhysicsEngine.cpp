@@ -28,6 +28,17 @@ double PhysicsEngine::getTimestep() {
 	return timestep;
 }
 
+void PhysicsEngine::pushBodiesApart(RigidBody* collider, RigidBody* collidee, const Vector3D nV, double colDepth) {
+	double dCldr = colDepth / (1 + collider->getMass() * collidee->getInverseMass());
+	double dCldee = colDepth - dCldr;
+	Vector3D cldeTransform;
+	nV.multiply(-dCldee, &cldeTransform);
+	Vector3D cldrTransform;
+	nV.multiply(dCldr, &cldrTransform);
+	collider->translate(cldrTransform);
+	collidee->translate(cldeTransform);
+}
+
 void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Point3D* colPoint, double restitutionFactor, double colDepth) {
 	double restitution = collidee->getRestitution() * restitutionFactor;
 	//Vector3D nV(*(colSurface->getPoints()->at(0)), *(colSurface->getNormalVectorPoint()));
@@ -37,14 +48,6 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 
 	//Vector3D p1ToP(*(colSurface->getPoints()->at(0)), *colPoint);
 	//double distToPlane = abs(nV.dotProduct(p1ToP));
-	double dCldr = colDepth / (1 + collider->getMass() * collidee->getInverseMass());
-	double dCldee = colDepth - dCldr;
-	Vector3D cldeTransform;
-	nV.multiply(-dCldee, &cldeTransform);
-	Vector3D cldrTransform;
-	nV.multiply(dCldr, &cldrTransform);
-	collider->translate(cldrTransform);
-	collidee->translate(cldeTransform);
 
 	Vector3D vCldrP0;
 	collider->getVelocityOfPoint(*colPoint, &vCldrP0);
@@ -159,10 +162,74 @@ void PhysicsEngine::iterateEngineTimestep() {
 				continue;
 			if (!body1->bodiesInCollisionRange(*body2))
 				continue;
+
+			std::vector<RigidBody::ColPointInfo*> b1ColInfo;
+			std::vector<RigidBody::ColPointInfo*> b2ColInfo;
+
+			bool collisionsOccuring = true;
+
+			while (collisionsOccuring) {
+				body1->findCollisionInformationAsCollider(&b1ColInfo, *body2);
+				body2->findCollisionInformationAsCollider(&b2ColInfo, *body1);
+
+				std::vector<RigidBody::ColPointInfo*>* colInfo = nullptr;
+				RigidBody* collider = nullptr;
+				RigidBody* collidee = nullptr;
+
+				bool b1Collider = true;
+				if (b1ColInfo.size() == 0 && b2ColInfo.size() == 0) {
+					collisionsOccuring = false;
+				}
+				else if (b1ColInfo.size() == 0) {
+					b1Collider = false;
+				}
+				else if ((b1ColInfo.at(0)->edgeCollision && !b2ColInfo.at(0)->edgeCollision) ||
+					b1ColInfo.at(0)->penDepth < b2ColInfo.at(0)->edgeCollision) {
+					b1Collider = false;
+				}
+
+				if (collisionsOccuring) {
+
+					if (b1Collider) {
+						colInfo = &b1ColInfo;
+						collider = body1;
+						collidee = body2;
+					}
+					else {
+						colInfo = &b2ColInfo;
+						collider = body2;
+						collidee = body1;
+					}
+
+					int maxCollisions = 4;
+					double restitutionMultiplier = 1;
+					double restitutionReductionFactor = 0.6;
+					for (int i = 0; i < colInfo->size() && i < maxCollisions + 1; i++) {
+						if (i == 0)
+							pushBodiesApart(collider, collidee, *colInfo->at(0)->colNormVector, colInfo->at(0)->penDepth);
+						if (i != 0 || colInfo->at(0)->edgeCollision) {
+							resolveImpulses(collider, collidee, *colInfo->at(i)->colNormVector, colInfo->at(i)->point, restitutionMultiplier, colInfo->at(i)->penDepth);
+							restitutionMultiplier *= restitutionReductionFactor;
+						}
+					}
+				}
+
+				for (int i = 0; i < b1ColInfo.size(); i++) {
+					if (!b1ColInfo.at(i)->pExiting)
+						delete b1ColInfo.at(i);
+				}
+				for (int i = 0; i < b2ColInfo.size(); i++) {
+					if (!b2ColInfo.at(i)->pExiting)
+						delete b2ColInfo.at(i);
+				}
+				b1ColInfo.clear();
+				b2ColInfo.clear();
+			}
+
+			/*
 			//resolve up to n collisions between the bodies.
 			double restitutionMultiplier = 1;
 			double restitutionReductionFactor = 0.6;
-			double maxCollisions = 1;
 			for (int i = 0; i < maxCollisions; i++) {
 				Point3D* b1ColPoint = nullptr;
 				RigidSurface* b1ColSurface = nullptr;
@@ -202,6 +269,7 @@ void PhysicsEngine::iterateEngineTimestep() {
 				if (edgeCollision) //edge collisions generate new point, needs to be deleted
 					delete colPoint;
 			}
+			*/
 		}
 	}
 }
