@@ -35,10 +35,9 @@ public:
 		Point3D* point;
 		Vector3D* colNormVector;
 		bool edgeCollision;
-		bool pExiting;
 		double penDepth;
 
-		ColPointInfo(Point3D* point, Vector3D* colNormVector, bool edgeCollision, bool pExiting, double penDepth);
+		ColPointInfo(Point3D* point, Vector3D* colNormVector, bool edgeCollision, double penDepth);
 		~ColPointInfo();
 	};
 

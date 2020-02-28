@@ -19,8 +19,8 @@ RigidBody::RigidBody(const std::vector<RigidSurface*>& surfaces, double density,
 	createReferenceCopies();
 	findCollisionRadius();
 
-	if (!fixed)
-		velocity.x = 5;
+	//if (!fixed)
+	//	velocity.x = 5;
 
 	orientationPoint1 = Point3D(centerOfMass.x, centerOfMass.y - 1, centerOfMass.z);
 	orientationPoint2 = Point3D(centerOfMass.x + 1, centerOfMass.y, centerOfMass.z);
@@ -444,12 +444,11 @@ bool RigidBody::verifyCollisionPointNotExiting(const RigidBody body, const Vecto
 	return vPRelative.dotProduct(normalVector) < 0;
 }
 
-RigidBody::ColPointInfo::ColPointInfo(Point3D* point, Vector3D* colNormVector, bool edgeCollision, bool pExiting, double penDepth) {
+RigidBody::ColPointInfo::ColPointInfo(Point3D* point, Vector3D* colNormVector, bool edgeCollision, double penDepth) {
 	this->point = point;
 	this->colNormVector = colNormVector;
 	this->edgeCollision = edgeCollision;
 	this->penDepth = penDepth;
-	this->pExiting = pExiting;
 }
 
 RigidBody::ColPointInfo::~ColPointInfo() {
@@ -553,25 +552,17 @@ void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* c
 
 			bool deepestPenPoint = colOutputs->size() == 0 || penetrationDepth > colOutputs->at(0)->penDepth;
 
-			if (!deepestPenPoint && !pointNotExiting)
-				continue; //intersection not worth noting
-
-			ColPointInfo* info = new ColPointInfo(p, normalVector, false, !pointNotExiting, penetrationDepth);
+			ColPointInfo* info = new ColPointInfo(p, normalVector, false, penetrationDepth);
 
 			if (deepestPenPoint) {
 				if (colOutputs->size() != 0) {
-					if (colOutputs->at(0)->pExiting) {
-						delete colOutputs->at(0);
-					}
 					colOutputs->at(0) = info;
 				}
 				else {
 					colOutputs->push_back(info);
 				}
 			}
-			if (pointNotExiting) {
-				colOutputs->push_back(info);
-			}
+			colOutputs->push_back(info);
 		}
 	}
 	if (getInverseMass() != 0 && !pointInside) {
@@ -665,7 +656,7 @@ void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* c
 							continue;
 						leastDepthPenetration = penDepth;
 						Vector3D* colNV = new Vector3D(perpDirection.x, perpDirection.y, perpDirection.z);
-						ColPointInfo* info = new ColPointInfo(colPoint, colNV, true, false, penDepth);
+						ColPointInfo* info = new ColPointInfo(colPoint, colNV, true, penDepth);
 						colOutputs->push_back(info);
 						return;
 					}

@@ -29,8 +29,9 @@ double PhysicsEngine::getTimestep() {
 }
 
 void PhysicsEngine::pushBodiesApart(RigidBody* collider, RigidBody* collidee, const Vector3D nV, double colDepth) {
-	double dCldr = colDepth / (1 + collider->getMass() * collidee->getInverseMass());
-	double dCldee = colDepth - dCldr;
+	double pushDist = colDepth + 0.1;
+	double dCldr = pushDist / (1 + collider->getMass() * collidee->getInverseMass());
+	double dCldee = pushDist - dCldr;
 	Vector3D cldeTransform;
 	nV.multiply(-dCldee, &cldeTransform);
 	Vector3D cldrTransform;
@@ -168,7 +169,10 @@ void PhysicsEngine::iterateEngineTimestep() {
 
 			bool collisionsOccuring = true;
 
-			while (collisionsOccuring) {
+			int count = 0;
+			int max = 3;
+			while (collisionsOccuring && count < max) {
+				count++;
 				body1->findCollisionInformationAsCollider(&b1ColInfo, *body2);
 				body2->findCollisionInformationAsCollider(&b2ColInfo, *body1);
 
@@ -183,11 +187,16 @@ void PhysicsEngine::iterateEngineTimestep() {
 				else if (b1ColInfo.size() == 0) {
 					b1Collider = false;
 				}
-				else if (b2ColInfo.size() != 0 && ((b1ColInfo.at(0)->edgeCollision && !b2ColInfo.at(0)->edgeCollision) ||
-					b1ColInfo.at(0)->penDepth < b2ColInfo.at(0)->edgeCollision)) {
+				else if (b2ColInfo.size() == 0) {
+					b1Collider = true;
+				}
+				else if (b1ColInfo.at(0)->edgeCollision && !b2ColInfo.at(0)->edgeCollision) {
 					b1Collider = false;
 				}
-
+				else if (!(!b1ColInfo.at(0)->edgeCollision && b2ColInfo.at(0)->edgeCollision) &&
+					(b1ColInfo.at(0)->penDepth < b2ColInfo.at(0)->edgeCollision)) {
+					b1Collider = false;
+				}
 				if (collisionsOccuring) {
 
 					if (b1Collider) {
@@ -232,13 +241,17 @@ void PhysicsEngine::iterateEngineTimestep() {
 
 				}
 
-				for (int i = 0; i < b1ColInfo.size(); i++) {
-					if (!b1ColInfo.at(i)->pExiting)
-						delete b1ColInfo.at(i);
+				for (int i = 1; i < b1ColInfo.size(); i++) {
+					delete b1ColInfo.at(i);
 				}
-				for (int i = 0; i < b2ColInfo.size(); i++) {
-					if (!b2ColInfo.at(i)->pExiting)
-						delete b2ColInfo.at(i);
+				if (b1ColInfo.size() == 1) {
+					delete(b1ColInfo.at(0));
+				}
+				for (int i = 1; i < b2ColInfo.size(); i++) {
+					delete b2ColInfo.at(i);
+				}
+				if (b2ColInfo.size() == 1) {
+					delete(b2ColInfo.at(0));
 				}
 				b1ColInfo.clear();
 				b2ColInfo.clear();
