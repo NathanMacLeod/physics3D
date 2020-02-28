@@ -7,7 +7,7 @@ class PhysicsEngine {
 	double reductionVel;
 	std::vector<RigidBody*> rigidBodies;
 	void pushBodiesApart(RigidBody* collider, RigidBody* collidee, const Vector3D nV, double colDepth);
-	void resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Point3D* colPoint, double restitutionFactor, double collisionDepth);
+	void resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Point3D* colPoint, double restitutionFactor);
 public:
 	PhysicsEngine(double timestep, const Vector3D& gravity);
 	PhysicsEngine();

@@ -28,7 +28,6 @@ class RigidBody {
 	void createReferenceCopies();
 	bool getPointInsideBody(const Point3D point, const std::vector<Point3D*> vectorPositions, const std::vector<Vector3D*> normalVectors);
 	Vector3D* findVectorRelativeToBodyFrame(const Vector3D vector, Vector3D* output);
-	bool verifyCollisionPointNotExiting(const RigidBody body, const Vector3D normalVector, const Point3D point);
 public:
 
 	class ColPointInfo {
@@ -56,6 +55,7 @@ public:
 	Point3D* getCenterOfMass();
 	Vector3D* getVelocityOfPointDueToAngularVelocity(const Point3D point, Vector3D* output) const;
 	Vector3D* getVelocityOfPoint(const Point3D point, Vector3D* output) const;
+	bool verifyCollisionPointNotExiting(const RigidBody body, const Vector3D normalVector, const Point3D point);
 	void applyImpulseAtPosition(const Vector3D impulse, const Point3D position);
 	double findInverseInertiaOfAxis(const Vector3D axis);
 	double getRadialDistanceOfPoint(const Point3D point);

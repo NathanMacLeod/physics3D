@@ -19,6 +19,9 @@ RigidBody::RigidBody(const std::vector<RigidSurface*>& surfaces, double density,
 	createReferenceCopies();
 	findCollisionRadius();
 
+	if (!fixed)
+		velocity.x = 5;
+
 	orientationPoint1 = Point3D(centerOfMass.x, centerOfMass.y - 1, centerOfMass.z);
 	orientationPoint2 = Point3D(centerOfMass.x + 1, centerOfMass.y, centerOfMass.z);
 

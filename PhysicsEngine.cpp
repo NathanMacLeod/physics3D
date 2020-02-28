@@ -39,7 +39,7 @@ void PhysicsEngine::pushBodiesApart(RigidBody* collider, RigidBody* collidee, co
 	collidee->translate(cldeTransform);
 }
 
-void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Point3D* colPoint, double restitutionFactor, double colDepth) {
+void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Point3D* colPoint, double restitutionFactor) {
 	double restitution = collidee->getRestitution() * restitutionFactor;
 	//Vector3D nV(*(colSurface->getPoints()->at(0)), *(colSurface->getNormalVectorPoint()));
 	//if (nV.y >= 0 && collidee->getInverseMass() == 0)
@@ -183,8 +183,8 @@ void PhysicsEngine::iterateEngineTimestep() {
 				else if (b1ColInfo.size() == 0) {
 					b1Collider = false;
 				}
-				else if ((b1ColInfo.at(0)->edgeCollision && !b2ColInfo.at(0)->edgeCollision) ||
-					b1ColInfo.at(0)->penDepth < b2ColInfo.at(0)->edgeCollision) {
+				else if (b2ColInfo.size() != 0 && ((b1ColInfo.at(0)->edgeCollision && !b2ColInfo.at(0)->edgeCollision) ||
+					b1ColInfo.at(0)->penDepth < b2ColInfo.at(0)->edgeCollision)) {
 					b1Collider = false;
 				}
 
@@ -204,14 +204,32 @@ void PhysicsEngine::iterateEngineTimestep() {
 					int maxCollisions = 4;
 					double restitutionMultiplier = 1;
 					double restitutionReductionFactor = 0.6;
-					for (int i = 0; i < colInfo->size() && i < maxCollisions + 1; i++) {
-						if (i == 0)
-							pushBodiesApart(collider, collidee, *colInfo->at(0)->colNormVector, colInfo->at(0)->penDepth);
-						if (i != 0 || colInfo->at(0)->edgeCollision) {
-							resolveImpulses(collider, collidee, *colInfo->at(i)->colNormVector, colInfo->at(i)->point, restitutionMultiplier, colInfo->at(i)->penDepth);
-							restitutionMultiplier *= restitutionReductionFactor;
-						}
+					int colCount = 0;
+
+					int k = colInfo->size();
+
+					if (colInfo->size() == 1) {
+						resolveImpulses(collider, collidee, *colInfo->at(0)->colNormVector, colInfo->at(0)->point, restitutionMultiplier);
+						pushBodiesApart(collider, collidee, *colInfo->at(0)->colNormVector, colInfo->at(0)->penDepth);
 					}
+					else {
+						while (colCount < maxCollisions) {
+							bool colTriggered = false;
+							for (int i = 1; colCount < maxCollisions && i < colInfo->size(); i++) {
+								if (collider->verifyCollisionPointNotExiting(*collidee, *colInfo->at(i)->colNormVector, *colInfo->at(i)->point)) {
+									colTriggered = true;
+									colCount++;
+									resolveImpulses(collider, collidee, *colInfo->at(i)->colNormVector, colInfo->at(i)->point, restitutionMultiplier);
+									restitutionMultiplier *= restitutionReductionFactor;
+								}
+							}
+							if (!colTriggered)
+								break;
+						}
+						//resolveImpulses(collider, collidee, *colInfo->at(0)->colNormVector, colInfo->at(0)->point, restitutionMultiplier);
+						pushBodiesApart(collider, collidee, *colInfo->at(0)->colNormVector, colInfo->at(0)->penDepth);
+					}
+
 				}
 
 				for (int i = 0; i < b1ColInfo.size(); i++) {
