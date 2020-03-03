@@ -212,7 +212,7 @@ void PhysicsEngine::iterateEngineTimestep() {
 
 					int maxCollisions = 4;
 					double restitutionMultiplier = 1;
-					double restitutionReductionFactor = 0.6;
+					double restitutionReductionFactor = 0.5;
 					int colCount = 0;
 
 					int k = colInfo->size();
