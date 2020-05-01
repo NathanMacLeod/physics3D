@@ -1,24 +1,24 @@
 #include "RigidBody.h"
 #include "transformation3D.h"
-
-const double DEFAULT_PARTICLE_DENSITY = 0.25;
+#include <stdio.h>
 
 RigidBody::RigidBody(const std::vector<RigidSurface*>& surfaces, double density, double friction, double restitution, bool fixed) {
 	this->fixed = fixed;
 	this->friction = friction;
 	this->restitution = restitution;
-	this->surfaces = surfaces;
-	for (RigidSurface* surface : surfaces) {
-		for (Point3D* p : *(surface->getPoints())) {
-			pointsToTransform.push_back(p);
-		}
-		pointsToTransform.push_back(surface->getNormalVectorPoint());
-	}
+	this->surfaces = surfaces;	
 
-	findBodyMassAndInertia(density, DEFAULT_PARTICLE_DENSITY);
+	findBodyMassAndInertia(density);
 	createReferenceCopies();
 	findCollisionRadius();
+	findColPointsEdges();
 
+	for (RigidSurface* surface : surfaces) {
+		pointsToTransform.push_back(surface->getNormalVectorPoint());
+	}
+	for (Point3D* p : colPoints) {
+		pointsToTransform.push_back(p);
+	}
 	//if (!fixed)
 	//	velocity.x = 5;
 
@@ -28,6 +28,44 @@ RigidBody::RigidBody(const std::vector<RigidSurface*>& surfaces, double density,
 	pointsToTransform.push_back(&orientationPoint1);
 	pointsToTransform.push_back(&orientationPoint2);
 	pointsToTransform.push_back(&centerOfMass);
+}
+
+RigidBody::Edge::Edge(Point3D* p1, Point3D* p2) {
+	this->p1 = p1;
+	this->p2 = p2;
+	inverseMagnitude = 1 / Vector3D(*p1, *p2).getMagnitude();
+}
+
+void RigidBody::findColPointsEdges() {
+	for (RigidSurface* s : surfaces) {
+		for (int i = 0; i < s->getPoints()->size(); i++) {
+			Point3D* p = s->getPoints()->at(i);
+			bool pAlreadyAdded = false;
+			for (Point3D* cp : colPoints) {
+				if (cp == p) {
+					pAlreadyAdded = true;
+					break;
+				}
+			}
+			if (!pAlreadyAdded) {
+				colPoints.push_back(p);
+			}
+
+			Point3D* p2 = (i + 1 == s->getPoints()->size()) ? s->getPoints()->at(0) : s->getPoints()->at(i + 1);
+			bool edgeAlreadyAdded = false;
+			//double epsilon = 0.0001;
+			//Vector3D nV(*s->getPoints()->at(0), *s->getNormalVectorPoint());
+			for (Edge* edge : colEdges) {
+				if ((edge->p1 == p && edge->p2 == p2) || (edge->p2 == p && edge->p1 == p2)) {
+					edgeAlreadyAdded = true;
+					break;
+				}
+			}
+			if (!edgeAlreadyAdded) {
+				colEdges.push_back(new Edge(p, p2));
+			}
+		}
+	}
 }
 
 void RigidBody::acclerateLineraly(const Vector3D changeInVelocity) {
@@ -58,7 +96,234 @@ bool RigidBody::getFixed() {
 	return fixed;
 }
 
+enum axis { X, Y, Z };
 
+double getAxisVal(Point3D* p, enum axis axis) {
+	switch (axis) {
+	case X:
+		return p->x;
+		break;
+	case Y:
+		return p->y;
+		break;
+	case Z:
+		return p->z;
+		break;
+	}
+}
+
+double iExp(double base, int x) {
+	double prod = 1;
+	for (int i = 0; i < x; i++) {
+		prod *= base;
+	}
+	return prod;
+}
+
+void RigidBody::findBodyMassAndInertia(double density) {
+	double v = 0, vX = 0, vY = 0, vZ = 0, vXSqrd = 0, vYSqrd = 0, vZSqrd = 0;
+	double vXY = 0, vXZ = 0, vYZ = 0;
+	
+	for (RigidSurface* s : surfaces) {
+		double sXSqrd, sYSqrd, sZSqrd, sXCbd, sYCbd, sZCbd;
+		double sXSqrdY, sXSqrdZ, sYSqrdZ, sX, u;
+
+		double* sA, * sB, * sC, * sASqrd, * sBSqrd, * sCSqrd;
+		double* sACbd, * sBCbd, * sCCbd, * sASqrdB, * sBSqrdC, * sASqrdC, *sBSqrdA, *sCSqrdA, *sCSqrdB;
+
+		double f = 0, fA = 0, fB = 0, fAB = 0, fASqrd = 0, fBSqrd = 0, fASqrdB = 0, fBSqrdA = 0;
+		double fACbd = 0, fBCbd = 0;
+
+		enum axis A; //horz axis
+		enum axis B; //vert axis
+		enum axis C; //normal axis
+
+		double nA;
+		double nB;
+		double nC;
+		double invC;
+		
+		Vector3D normV(*s->getPoints()->at(0), *s->getNormalVectorPoint());
+
+		if (abs(normV.x) > abs(normV.y) && abs(normV.x) > abs(normV.z)) {
+			C = X;
+			A = Y;
+			B = Z;
+			nC = normV.x;
+			nA = normV.y;
+			nB = normV.z;
+
+			sA = &u;
+			sB = &u;
+			sC = &sX;
+			sASqrd = &sYSqrd;
+			sBSqrd = &sZSqrd;
+			sCSqrd = &sXSqrd;
+			sACbd = &sYCbd;
+			sBCbd = &sZCbd;
+			sCCbd = &sXCbd;
+			sASqrdB = &sYSqrdZ;
+			sCSqrdB = &sXSqrdZ;
+			sCSqrdA = &sXSqrdY;
+			sBSqrdA = &u;
+			sBSqrdC = &u;
+			sASqrdC = &u;
+			sASqrd = &sYSqrd;
+			sBSqrd = &sZSqrd;
+			sCSqrd = &sXSqrd;
+		}
+		else if (abs(normV.y) > abs(normV.x) && abs(normV.y) > abs(normV.z)) {
+			C = Y;
+			A = Z;
+			B = X;
+			nC = normV.y;
+			nA = normV.z;
+			nB = normV.x;
+
+			sA = &u;
+			sB = &sX;
+			sC = &u;
+			sASqrd = &sZSqrd;
+			sBSqrd = &sXSqrd;
+			sCSqrd = &sYSqrd;
+			sACbd = &sZCbd;
+			sBCbd = &sXCbd;
+			sCCbd = &sYCbd;
+			sBSqrdA = &sXSqrdZ;
+			sBSqrdC = &sXSqrdY;
+			sCSqrdA = &sYSqrdZ;
+			sASqrdB = &u;
+			sASqrdC = &u;
+			sCSqrdB = &u;
+			sASqrd = &sZSqrd;
+			sBSqrd = &sXSqrd;
+			sCSqrd = &sYSqrd;
+		}
+		else {
+			C = Z;
+			A = X;
+			B = Y;
+			nC = normV.z;
+			nA = normV.x;
+			nB = normV.y;
+
+			sA = &sX;
+			sB = &u;
+			sC = &u;
+			sASqrd = &sXSqrd;
+			sBSqrd = &sYSqrd;
+			sCSqrd = &sZSqrd;
+			sACbd = &sXCbd;
+			sBCbd = &sYCbd;
+			sCCbd = &sZCbd;
+			sASqrdB = &sXSqrdY;
+			sBSqrdC = &sYSqrdZ;
+			sASqrdC = &sXSqrdZ;
+			sBSqrdA = &u;
+			sCSqrdA = &u;
+			sCSqrdB = &u;
+			sASqrd = &sXSqrd;
+			sBSqrd = &sYSqrd;
+			sCSqrd = &sZSqrd;
+		}
+
+		for (int i = 0; i < s->getPoints()->size(); i++) {
+			Point3D* p1 = s->getPoints()->at(i);
+			Point3D* p2 = i + 1 == s->getPoints()->size() ? s->getPoints()->at(0) : s->getPoints()->at(i + 1);
+
+			double a1 = getAxisVal(p1, A);
+			double b1 = getAxisVal(p1, B);
+			double a2 = getAxisVal(p2, A);
+			double b2 = getAxisVal(p2, B);
+
+			double a21 = a2 - a1;
+			double b21 = b2 - b1;
+
+			f += b21 * (a1 + a21 / 2);
+			fA += 0.5 * b21 * (a1 * a1 + a1 * a21 + a21 * a21 / 3);
+			fB += -0.5 * a21 * (b1 * b1 + b1 * b21 + b21 * b21 / 3);
+			fAB += 0.5 * b21 * (b21 * a1 * a1 + a1 * a21 * b1 + b1 * a21 * a21 / 3.0 + a1 * a1 / 2.0 + 2 * a1 * a21 / 3.0 + a21 * a21 / 4.0);
+			fASqrd += (1 / 3.0) * b21 * (a1 * a1 * a1 + 3 * a1 * a1 * a21 / 2.0 + a1 * a21 * a21 + a21 * a21 * a21 / 4.0);
+			fBSqrd += -(1/3.0) * a21 * (b1 * b1 * b1 + 3 * b1 * b1 * b21 / 2.0 + b1 * b21 * b21 + b21 * b21 * b21 / 4.0);
+			fASqrdB += (1 / 3.0) * b21 * (b1 * (a1 * a1 * a1 + 3 * a1 * a1 * a21 / 2.0 + a1 * a21 * a21 + a21 * a21 * a21 / 4.0)
+				+ (a1 * a1 * a1 / 2.0 + a1 * a1 * a21 + 3 * a1 * a21 * a21 / 4.0 + a21 * a21 * a21 / 5.0));
+			fBSqrdA += -(1 / 3.0) * a21 * (a1 * (b1 * b1 * b1 + 3 * b1 * b1 * b21 / 2.0 + b1 * b21 * b21 + b21 * b21 * b21 / 4.0)
+				+ (b1 * b1 * b1 / 2.0 + b1 * b1 * b21 + 3 * b1 * b21 * b21 / 4.0 + b21 * b21 * b21 / 5.0));
+			fACbd += 0.25 * b21 * (a1 * a1 * a1 * a1 + 2 * a1 * a1 * a1 * a21 + 2 * a1 * a1 * a21 * a21 + a1 * a21 * a21 * a21 + a21 * a21 * a21 * a21 / 5.0);
+			fBCbd += -0.25 * a21 * (b1 * b1 * b1 * b1 + 2 * b1 * b1 * b1 * b21 + 2 * b1 * b1 * b21 * b21 + b1 * b21 * b21 * b21 + b21 * b21 * b21 * b21 / 5.0);
+		}
+
+		invC = 1 / nC;
+		//double absInvC = abs(invC);
+		Point3D* p = s->getPoints()->at(0);
+		double k = -(normV.x * p->x + normV.y * p->y + normV.z * p->z);
+
+		*sA = invC * fA;
+		*sB = invC * fB;
+		*sC = -invC * invC * (f * k + nA * fA + nB * fB);
+		*sASqrd = invC * fASqrd;
+		*sBSqrd = invC * fBSqrd;
+		*sCSqrd = invC * invC * invC * (k * k * f + nA * nA * fASqrd + nB * nB * fBSqrd + 2 * k * nA * fA
+			+ 2 * k * nB * fB + 2 * nA * nB * fAB);
+		*sASqrdB = invC * fASqrdB;
+		*sBSqrdA = invC * fBSqrdA;
+		*sASqrdC = -invC * invC * (k * fASqrd + nA * fACbd + nB * fASqrdB);
+		*sBSqrdC = -invC * invC * (k * fBSqrd + nB * fBCbd + nA * fBSqrdA);
+		*sCSqrdA = invC * invC * invC * (k * k * fA + nA * nA * fACbd + nB * nB * fBSqrdA + 2 * k * nA * fASqrd + 2 * k * nB * fAB + 2 * nA * nB * fASqrdB);
+		*sCSqrdB = invC * invC * invC * (k * k * fB + nA * nA * fASqrdB + nB * nB * fBCbd + 2 * k * nA * fAB + 2 * k * nB * fBSqrd + 2 * nA * nB * fBSqrdA);
+		*sACbd = invC * fACbd;
+		*sBCbd = invC * fBCbd;
+		*sCCbd = -invC * invC * invC * invC * (k * k * k * f + nA * nA * nA * fACbd + nB * nB * nB * fBCbd + 3 * k * nA * nA * fASqrd + 3 * k * nB * nB * fBSqrd +
+			3 * nA * nA * nB * fASqrdB + 3 * nA * nB * nB * fBSqrdA + 3 * k * k * nA * fA + 3 * k * k * nB * fB + 6 * k * nA * nB * fAB);
+
+		//printf("sACbd: %f, sBCbd: %f, sCCbd: %f\n", *sACbd, fBCbd, *sCCbd);
+
+		v += normV.x * sX;
+		vX += 0.5 * normV.x * sXSqrd;
+		vY += 0.5 * normV.y * sYSqrd;
+		vZ += 0.5 * normV.z * sZSqrd;
+		vXSqrd += (1.0 / 3.0) * normV.x * sXCbd;
+		vYSqrd += (1.0 / 3.0) * normV.y * sYCbd;
+		vZSqrd += (1.0 / 3.0) * normV.z * sZCbd;
+		vXY += 0.5 * normV.x * sXSqrdY;
+		vXZ += 0.5 * normV.x * sXSqrdZ;
+		vYZ += 0.5 * normV.y * sYSqrdZ;
+
+	}
+
+	mass = v * density;
+	centerOfMass.x = vX / v;
+	centerOfMass.y = vY / v;
+	centerOfMass.z = vZ / v;
+
+	inverseMass = 1.0 / mass;
+	inertiaTensor = new double[9] { 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+	inertiaTensor[0] = density * (vYSqrd + vZSqrd - v * (centerOfMass.y * centerOfMass.y + centerOfMass.z * centerOfMass.z));
+	inertiaTensor[1] = -density * (vXY - v * centerOfMass.x * centerOfMass.y);
+	inertiaTensor[2] = -density * (vXZ - v * centerOfMass.x * centerOfMass.z);
+	inertiaTensor[4] = density * (vXSqrd + vZSqrd - v * (centerOfMass.x * centerOfMass.x + centerOfMass.z * centerOfMass.z));
+	inertiaTensor[5] = -density * (vYZ - v *centerOfMass.y * centerOfMass.z);
+	inertiaTensor[8] = density * (vXSqrd + vYSqrd - v * (centerOfMass.x * centerOfMass.x + centerOfMass.y * centerOfMass.y));
+	inertiaTensor[3] = inertiaTensor[1];
+	inertiaTensor[6] = inertiaTensor[2];
+	inertiaTensor[7] = inertiaTensor[5];
+
+	
+	for (int i = 0; i < 9; i++) {
+		printf("%f, ", inertiaTensor[i]);
+		if ((i + 1) % 3 == 0)
+			printf("\n");
+	}
+
+	printf("%f, %f, %f\n", centerOfMass.x, centerOfMass.y, centerOfMass.z);
+
+	printf("%f\n", mass);
+	printf("____________________________________\n");
+	
+}
+
+/*
 //todo: do this in not dumb way
 void RigidBody::findBodyMassAndInertia(double particleMass, double particleSpacing) {
 	double lowestX = 0;
@@ -223,6 +488,7 @@ void RigidBody::findBodyMassAndInertia(double particleMass, double particleSpaci
 		inertiaTensor[i] *= mass / numPoints;
 	}
 }
+*/
 
 Vector3D* RigidBody::findVectorRelativeToBodyFrame(const Vector3D vector, Vector3D* output) {
 	Vector3D orientationVector1(centerOfMass, orientationPoint1);
@@ -404,9 +670,9 @@ bool RigidBody::bodiesInCollisionRange(RigidBody& body) {
 	double yDist = abs(centerOfMass.y - body.getCenterOfMass()->y);
 	double zDist = abs(centerOfMass.z - body.getCenterOfMass()->z);
 
-	if (xDist > collisionRadius + body.getCollisionRadius() || yDist > collisionRadius + body.getCollisionRadius() || zDist > collisionRadius + body.getCollisionRadius())
-		return false;
-	if (xDist * xDist + yDist * yDist + zDist * zDist > pow(collisionRadius + body.getCollisionRadius(), 2))
+	//if (xDist > collisionRadius + body.getCollisionRadius() || yDist > collisionRadius + body.getCollisionRadius() || zDist > collisionRadius + body.getCollisionRadius())
+	//	return false;
+	if (xDist * xDist + yDist * yDist + zDist * zDist > (collisionRadius + body.getCollisionRadius()) * (collisionRadius + body.getCollisionRadius()))
 		return false;
 	return true;
 }
@@ -425,6 +691,10 @@ Vector3D* RigidBody::getVelocityOfPoint(const Point3D point, Vector3D* output) c
 	getVelocityOfPointDueToAngularVelocity(point, output);
 	velocity.add(*output, output);
 	return output;
+}
+
+Vector3D* RigidBody::getVelocity() {
+	return &velocity;
 }
 
 double RigidBody::getRadialDistanceOfPoint(const Point3D point) {
@@ -460,209 +730,210 @@ RigidBody::ColPointInfo::~ColPointInfo() {
 
 void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* colOutputs, RigidBody& body) {
 	bool pointInside = false;
-	for (RigidSurface* surface : surfaces) {
-		for (Point3D* p : *(surface->getPoints())) {
-			//check if point is within collision radius to ignore points that cant possibly be inside
-			double distToBodySquared = pow(p->x - body.getCenterOfMass()->x, 2) + pow(p->y - body.getCenterOfMass()->y, 2) + pow(p->z - body.getCenterOfMass()->z, 2);
-			if (distToBodySquared > body.getCollisionRadiusSquared())
-				continue;
-			if (!body.getPointInsideBody(*p)) {
-				continue;
-			}
-			pointInside = true;
+	
+	for (Point3D* p : colPoints) {
+		//check if point is within collision radius to ignore points that cant possibly be inside
+		double distToBodySquared = (p->x - body.getCenterOfMass()->x) * (p->x - body.getCenterOfMass()->x) +
+			(p->y - body.getCenterOfMass()->y) * (p->y - body.getCenterOfMass()->y) +
+			(p->z - body.getCenterOfMass()->z) * (p->z - body.getCenterOfMass()->z);
+		if (distToBodySquared > body.getCollisionRadiusSquared())
+			continue;
+		if (!body.getPointInsideBody(*p)) {
+			continue;
+		}
+		pointInside = true;
 
-			//point can potentially be a collision point, now check to see if the ray from the center of mass to the point
-			//intersects any surfaces on body
-			RigidSurface* nearestPenetratedSurface = nullptr;
-			double nearestPenetratingSurfaceDistSquared;
-			for (RigidSurface* potentialCollisionSurface : *(body.getSurfaces())) {
-				Point3D* surfaceP1 = potentialCollisionSurface->getPoints()->at(0);
-				//normal vector of plane
-				Vector3D normalVector(*surfaceP1, *(potentialCollisionSurface->getNormalVectorPoint()));
-				//check that p and center of mass are on opposite sides of the plane defined by surface
-				Vector3D p1P(*surfaceP1, *p);
-				Vector3D p1COM(*surfaceP1, centerOfMass);
-				//if both dot products are positive or negative they are on the same side of the plane
-				if (p1P.dotProduct(normalVector) * p1COM.dotProduct(normalVector) >= 0)
+		//point can potentially be a collision point, now check to see if the ray from the center of mass to the point
+		//intersects any surfaces on body
+		RigidSurface* nearestPenetratedSurface = nullptr;
+		double nearestPenetratingSurfaceDistSquared;
+		for (RigidSurface* potentialCollisionSurface : *(body.getSurfaces())) {
+			Point3D* surfaceP1 = potentialCollisionSurface->getPoints()->at(0);
+			//normal vector of plane
+			Vector3D normalVector(*surfaceP1, *(potentialCollisionSurface->getNormalVectorPoint()));
+			//check that p and center of mass are on opposite sides of the plane defined by surface
+			Vector3D p1P(*surfaceP1, *p);
+			Vector3D p1COM(*surfaceP1, centerOfMass);
+			//if both dot products are positive or negative they are on the same side of the plane
+			if (p1P.dotProduct(normalVector) * p1COM.dotProduct(normalVector) >= 0)
+				continue;
+			//useing parametrics to fine the intersection between pToCOM and the plane
+			//n . (pToP1 - pToCom * t) = 0
+			// >>>
+			// t = n . pToP1 / n . pToCom
+			Vector3D pToCOM(*p, centerOfMass);
+			Vector3D pToP1(*p, *surfaceP1);
+			double t = normalVector.dotProduct(pToP1) / normalVector.dotProduct(pToCOM);
+			pToCOM.multiply(t, &pToCOM); //point p + pToCOM now gives intersection with plane
+			Point3D planeIntersection(p->x + pToCOM.x, p->y + pToCOM.y, p->z + pToCOM.z);
+			//check that the intersection point lies in the actual surface defined
+			Vector3D planeAxisI(*surfaceP1, planeIntersection);
+			double p1ToIntersectDistSquared = planeAxisI.getMagnitudeSquared();
+			planeAxisI.getUnitVector(&planeAxisI);
+			Vector3D planeAxisJ;
+			planeAxisI.crossProduct(normalVector, &planeAxisJ);
+			//axis I and J define unit vectors on the plane defined by surface. if intersection point is within
+			//the surface, it now sits on the i axis, and if its within there should be one edge on the polygon that intersects
+			// the i axis, that should be behind the intersection point in its i value
+			bool pointInSurface = false;
+			for (int i = 1; i < potentialCollisionSurface->getPoints()->size() - 1; i++) {
+				Vector3D point1(*surfaceP1, *(potentialCollisionSurface->getPoints()->at(i)));
+				Vector3D point2(*surfaceP1, *(potentialCollisionSurface->getPoints()->at(i + 1)));
+				double p1J = point1.dotProduct(planeAxisJ);
+				double p2J = point2.dotProduct(planeAxisJ);
+				//check that p1 and p2 cross the i axis
+				if (p1J * p2J > 0)
 					continue;
-				//useing parametrics to fine the intersection between pToCOM and the plane
-				//n . (pToP1 - pToCom * t) = 0
-				// >>>
-				// t = n . pToP1 / n . pToCom
-				Vector3D pToCOM(*p, centerOfMass);
-				Vector3D pToP1(*p, *surfaceP1);
-				double t = normalVector.dotProduct(pToP1) / normalVector.dotProduct(pToCOM);
-				pToCOM.multiply(t, &pToCOM); //point p + pToCOM now gives intersection with plane
-				Point3D planeIntersection(p->x + pToCOM.x, p->y + pToCOM.y, p->z + pToCOM.z);
-				//check that the intersection point lies in the actual surface defined
-				Vector3D planeAxisI(*surfaceP1, planeIntersection);
-				double p1ToIntersectDistSquared = planeAxisI.getMagnitudeSquared();
-				planeAxisI.getUnitVector(&planeAxisI);
-				Vector3D planeAxisJ;
-				planeAxisI.crossProduct(normalVector, &planeAxisJ);
-				//axis I and J define unit vectors on the plane defined by surface. if intersection point is within
-				//the surface, it now sits on the i axis, and if its within there should be one edge on the polygon that intersects
-				// the i axis, that should be behind the intersection point in its i value
-				bool pointInSurface = false;
-				for (int i = 1; i < potentialCollisionSurface->getPoints()->size() - 1; i++) {
-					Vector3D point1(*surfaceP1, *(potentialCollisionSurface->getPoints()->at(i)));
-					Vector3D point2(*surfaceP1, *(potentialCollisionSurface->getPoints()->at(i + 1)));
-					double p1J = point1.dotProduct(planeAxisJ);
-					double p2J = point2.dotProduct(planeAxisJ);
-					//check that p1 and p2 cross the i axis
-					if (p1J * p2J > 0)
-						continue;
-					double p1I = point1.dotProduct(planeAxisI);
-					double p2I = point2.dotProduct(planeAxisI);
-					if (p1J == 0) {
-						pointInSurface = p1I * p1I > p1ToIntersectDistSquared;
-						break;
-					}
-					if (p2J == 0) {
-						pointInSurface = p2I * p2I > p1ToIntersectDistSquared;
-						break;
-					}
-					double iIntercept = (p2I == p1I) ? p2I : p1I - p1J * (p2I - p1I) / (p2J - p1J);
-					pointInSurface = iIntercept * iIntercept > p1ToIntersectDistSquared;
+				double p1I = point1.dotProduct(planeAxisI);
+				double p2I = point2.dotProduct(planeAxisI);
+				if (p1J == 0) {
+					pointInSurface = p1I * p1I > p1ToIntersectDistSquared;
 					break;
 				}
-				if (!pointInSurface)
-					continue;
-
-				double distX = (planeIntersection.x - centerOfMass.x) * (planeIntersection.x - centerOfMass.x);
-				double distY = (planeIntersection.y - centerOfMass.y) * (planeIntersection.y - centerOfMass.y);
-				double distZ = (planeIntersection.z - centerOfMass.z) * (planeIntersection.z - centerOfMass.z);
-				double distFromCenterOfMass = distX + distY + distZ;
-				if (nearestPenetratedSurface == nullptr || distFromCenterOfMass < nearestPenetratingSurfaceDistSquared) {
-					nearestPenetratedSurface = potentialCollisionSurface;
-					nearestPenetratingSurfaceDistSquared = distFromCenterOfMass;
+				if (p2J == 0) {
+					pointInSurface = p2I * p2I > p1ToIntersectDistSquared;
+					break;
 				}
+				double iIntercept = (p2I == p1I) ? p2I : p1I - p1J * (p2I - p1I) / (p2J - p1J);
+				pointInSurface = iIntercept * iIntercept > p1ToIntersectDistSquared;
+				break;
 			}
-			if (nearestPenetratedSurface == nullptr) {
+			if (!pointInSurface)
 				continue;
+
+			double distX = (planeIntersection.x - centerOfMass.x) * (planeIntersection.x - centerOfMass.x);
+			double distY = (planeIntersection.y - centerOfMass.y) * (planeIntersection.y - centerOfMass.y);
+			double distZ = (planeIntersection.z - centerOfMass.z) * (planeIntersection.z - centerOfMass.z);
+			double distFromCenterOfMass = distX + distY + distZ;
+			if (nearestPenetratedSurface == nullptr || distFromCenterOfMass < nearestPenetratingSurfaceDistSquared) {
+				nearestPenetratedSurface = potentialCollisionSurface;
+				nearestPenetratingSurfaceDistSquared = distFromCenterOfMass;
 			}
-
-			Point3D* surfaceP1 = nearestPenetratedSurface->getPoints()->at(0);
-			Vector3D p1ToP(*surfaceP1, *p);
-			Vector3D* normalVector = new Vector3D(*surfaceP1, *(nearestPenetratedSurface->getNormalVectorPoint()));
-
-			bool pointNotExiting = verifyCollisionPointNotExiting(body, *normalVector, *p);
-
-			double penetrationDepth = abs(p1ToP.dotProduct(*normalVector));
-
-			bool deepestPenPoint = colOutputs->size() == 0 || penetrationDepth > colOutputs->at(0)->penDepth;
-
-			ColPointInfo* info = new ColPointInfo(p, normalVector, false, penetrationDepth);
-
-			if (deepestPenPoint) {
-				if (colOutputs->size() != 0) {
-					colOutputs->at(0) = info;
-				}
-				else {
-					colOutputs->push_back(info);
-				}
-			}
-			colOutputs->push_back(info);
 		}
+		if (nearestPenetratedSurface == nullptr) {
+			continue;
+		}
+
+		Point3D* surfaceP1 = nearestPenetratedSurface->getPoints()->at(0);
+		Vector3D p1ToP(*surfaceP1, *p);
+		Vector3D* normalVector = new Vector3D(*surfaceP1, *(nearestPenetratedSurface->getNormalVectorPoint()));
+
+		bool pointNotExiting = verifyCollisionPointNotExiting(body, *normalVector, *p);
+
+		double penetrationDepth = abs(p1ToP.dotProduct(*normalVector));
+
+		bool deepestPenPoint = colOutputs->size() == 0 || penetrationDepth > colOutputs->at(0)->penDepth;
+
+		ColPointInfo* info = new ColPointInfo(p, normalVector, false, penetrationDepth);
+
+		if (deepestPenPoint) {
+			if (colOutputs->size() != 0) {
+				colOutputs->at(0) = info;
+			}
+			else {
+				colOutputs->push_back(info);
+			}
+		}
+		colOutputs->push_back(info);
 	}
+	
 	if (getInverseMass() != 0 && !pointInside) {
 		//check for edge collisions
-		for (RigidSurface* surface : surfaces) {
-			for (int i = 0; i < surface->getPoints()->size(); i++) {
-				Point3D* p1 = surface->getPoints()->at(i);
-				Point3D* p2 = (i == surface->getPoints()->size() - 1)? surface->getPoints()->at(0) : surface->getPoints()->at(i + 1);
-				Vector3D p1p2(*p1, *p2);
-				Vector3D p1p2Unit;
-				p1p2.multiply(surface->getInverseSegmentMagnitude(i), &p1p2Unit);
-				Vector3D p1Com(*p1, *(body.getCenterOfMass()));
-				Vector3D parralelComp;
-				p1p2Unit.multiply(p1Com.dotProduct(p1p2Unit), &parralelComp);
-				Vector3D distComp;
-				p1Com.sub(parralelComp, &distComp);
-				if (distComp.getMagnitudeSquared() > body.getCollisionRadiusSquared())
-					continue;
-				double leastDepthPenetration = -1;
-				for (RigidSurface* potColSurface : *(body.getSurfaces())) {
-					Point3D* surfP1 = potColSurface->getPoints()->at(0);
-					Vector3D normalVector(*surfP1, *(potColSurface->getNormalVectorPoint()));
-					Vector3D p1Sp1(*p1, *surfP1);
-					Vector3D p2Sp1(*p2, *surfP1);
+		for (Edge* edge : colEdges) {
+			Point3D* p1 = edge->p1;
+			Point3D* p2 = edge->p2;
+			Vector3D p1p2(*p1, *p2);
+			Vector3D p1p2Unit;
+			p1p2.multiply(edge->inverseMagnitude, &p1p2Unit);
+			Vector3D p1Com(*p1, *(body.getCenterOfMass()));
+			Vector3D parralelComp;
+			p1p2Unit.multiply(p1Com.dotProduct(p1p2Unit), &parralelComp);
+			Vector3D distComp;
+			p1Com.sub(parralelComp, &distComp);
+			if (distComp.getMagnitudeSquared() > body.getCollisionRadiusSquared())
+				continue;
+			double leastDepthPenetration = -1;
+			for (RigidSurface* potColSurface : *(body.getSurfaces())) {
+				Point3D* surfP1 = potColSurface->getPoints()->at(0);
+				Vector3D normalVector(*surfP1, *(potColSurface->getNormalVectorPoint()));
+				Vector3D p1Sp1(*p1, *surfP1);
+				Vector3D p2Sp1(*p2, *surfP1);
 					
-					if (p1Sp1.dotProduct(normalVector) * p2Sp1.dotProduct(normalVector) > 0)
-						continue;
+				if (p1Sp1.dotProduct(normalVector) * p2Sp1.dotProduct(normalVector) > 0)
+					continue;
 
-					Vector3D axisJ;
+				Vector3D axisJ;
+				Vector3D perpComp;
+				p1p2Unit.multiply(p1p2Unit.dotProduct(p1Sp1), &perpComp);
+				p1Sp1.sub(perpComp, &axisJ);
+				Vector3D axisI;
+				axisJ.crossProduct(p1p2Unit, &axisI);
+				int pointsAbove = 1;
+				int pointsBelow = 0;
+ 				for (int i = 1; i < potColSurface->getPoints()->size() - 1; i++) {
+					Vector3D lineP1(*p1, *(potColSurface->getPoints()->at(i)));
+					Vector3D lineP2(*p1, *(potColSurface->getPoints()->at(i + 1)));
+					double p1I = axisI.dotProduct(lineP1);
+					double p2I = axisI.dotProduct(lineP2);
+					//i coords dont intersect j axis
+					if (p1I * p2I > 0)
+						continue;
+					double p1J = axisJ.dotProduct(lineP1);
+					double p2J = axisJ.dotProduct(lineP2);
+					double jInt = p1J - p1I * (p2J - p1J) / (p2I - p1I);
+					if (jInt > 0) {
+						pointsAbove++;
+					}
+					else {
+						pointsBelow++;
+					}
+				}
+				if (pointsAbove % 2 == 0 || pointsBelow % 2 == 0)
+					continue;
+				for (int i = 0; i < potColSurface->getPoints()->size(); i++) {
+					Point3D* lp1 = potColSurface->getPoints()->at(i);
+					Point3D* lp2 = (i == potColSurface->getPoints()->size() - 1) ? potColSurface->getPoints()->at(0) : potColSurface->getPoints()->at(i + 1);
+					Vector3D lp1lp2(*lp1, *lp2);
+					Vector3D perpDirection;
+					lp1lp2.crossProduct(p1p2, &perpDirection);
+					perpDirection.getUnitVector(&perpDirection);
+					Vector3D p1Lp1(*p1, *lp1);
+					double penDepth = p1Lp1.dotProduct(perpDirection);
+					if (penDepth < 0) {
+						perpDirection.multiply(-1, &perpDirection);
+						penDepth *= -1;
+					}
+					//choice of 1.5 arbitrary, tries to avoid improper collisions
+					if ((leastDepthPenetration != -1 && penDepth >= leastDepthPenetration) || penDepth > 0.3)
+						continue;
+					double lp1I = p1Lp1.dotProduct(p1p2Unit);
+					Vector3D p1Lp2(*p1, *lp2);
+					double lp2I = p1Lp2.dotProduct(p1p2Unit);
+					Vector3D vertAxis;
+					perpDirection.crossProduct(p1p2Unit, &vertAxis);
+					double lp1J = vertAxis.dotProduct(p1Lp1);
+					double lp2J = vertAxis.dotProduct(p1Lp2);
+					double iInt = lp1I - lp1J * (lp2I - lp1I) / (lp2J - lp1J);
+					if (iInt < 0 || iInt > p1p2.getMagnitude())
+						continue;
+					Vector3D p1ToCol;
+					p1p2Unit.multiply(iInt, &p1ToCol);
 					Vector3D perpComp;
-					p1p2Unit.multiply(p1p2Unit.dotProduct(p1Sp1), &perpComp);
-					p1Sp1.sub(perpComp, &axisJ);
-					Vector3D axisI;
-					axisJ.crossProduct(p1p2Unit, &axisI);
-					int pointsAbove = 1;
-					int pointsBelow = 0;
- 					for (int i = 1; i < potColSurface->getPoints()->size() - 1; i++) {
-						Vector3D lineP1(*p1, *(potColSurface->getPoints()->at(i)));
-						Vector3D lineP2(*p1, *(potColSurface->getPoints()->at(i + 1)));
-						double p1I = axisI.dotProduct(lineP1);
-						double p2I = axisI.dotProduct(lineP2);
-						//i coords dont intersect j axis
-						if (p1I * p2I > 0)
-							continue;
-						double p1J = axisJ.dotProduct(lineP1);
-						double p2J = axisJ.dotProduct(lineP2);
-						double jInt = p1J - p1I * (p2J - p1J) / (p2I - p1I);
-						if (jInt > 0) {
-							pointsAbove++;
-						}
-						else {
-							pointsBelow++;
-						}
-					}
-					if (pointsAbove % 2 == 0 || pointsBelow % 2 == 0)
-						continue;
-					for (int i = 0; i < potColSurface->getPoints()->size(); i++) {
-						Point3D* lp1 = potColSurface->getPoints()->at(i);
-						Point3D* lp2 = (i == potColSurface->getPoints()->size() - 1) ? potColSurface->getPoints()->at(0) : potColSurface->getPoints()->at(i + 1);
-						Vector3D lp1lp2(*lp1, *lp2);
-						Vector3D perpDirection;
-						lp1lp2.crossProduct(p1p2, &perpDirection);
-						perpDirection.getUnitVector(&perpDirection);
-						Vector3D p1Lp1(*p1, *lp1);
-						double penDepth = p1Lp1.dotProduct(perpDirection);
-						if (penDepth < 0) {
-							perpDirection.multiply(-1, &perpDirection);
-							penDepth *= -1;
-						}
-						//choice of 1.5 arbitrary, tries to avoid improper collisions
-						if ((leastDepthPenetration != -1 && penDepth >= leastDepthPenetration) || penDepth > 1.5)
-							continue;
-						double lp1I = p1Lp1.dotProduct(p1p2Unit);
-						Vector3D p1Lp2(*p1, *lp2);
-						double lp2I = p1Lp2.dotProduct(p1p2Unit);
-						Vector3D vertAxis;
-						perpDirection.crossProduct(p1p2Unit, &vertAxis);
-						double lp1J = vertAxis.dotProduct(p1Lp1);
-						double lp2J = vertAxis.dotProduct(p1Lp2);
-						double iInt = lp1I - lp1J * (lp2I - lp1I) / (lp2J - lp1J);
-						if (iInt < 0 || iInt > p1p2.getMagnitude())
-							continue;
-						Vector3D p1ToCol;
-						p1p2Unit.multiply(iInt, &p1ToCol);
-						Vector3D perpComp;
-						perpDirection.multiply(penDepth, &perpComp);
-						p1ToCol.add(perpComp, &p1ToCol);
+					perpDirection.multiply(penDepth, &perpComp);
+					p1ToCol.add(perpComp, &p1ToCol);
 
-						Point3D* colPoint = new Point3D(p1->x + p1ToCol.x, p1->y + p1ToCol.y, p1->z + p1ToCol.z);
-						if (!verifyCollisionPointNotExiting(body, perpDirection, *colPoint))
-							continue;
-						leastDepthPenetration = penDepth;
-						Vector3D* colNV = new Vector3D(perpDirection.x, perpDirection.y, perpDirection.z);
-						ColPointInfo* info = new ColPointInfo(colPoint, colNV, true, penDepth);
-						colOutputs->push_back(info);
-						return;
-					}
+					Point3D* colPoint = new Point3D(p1->x + p1ToCol.x, p1->y + p1ToCol.y, p1->z + p1ToCol.z);
+					if (!verifyCollisionPointNotExiting(body, perpDirection, *colPoint))
+						continue;
+					leastDepthPenetration = penDepth;
+					Vector3D* colNV = new Vector3D(perpDirection.x, perpDirection.y, perpDirection.z);
+					ColPointInfo* info = new ColPointInfo(colPoint, colNV, true, penDepth);
+					colOutputs->push_back(info);
+					return;
 				}
 			}
 		}
+		
 	}
 
 	//sorting the colPoints with bubble sort, deepest penning points are resolved first.

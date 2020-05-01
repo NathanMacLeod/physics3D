@@ -3,17 +3,20 @@
 
 
 const double GRAV_DEFAULT = 20;
-const double TIMESTEP_DEFAULT = 0.015;
+const double TIMESTEP_DEFAULT = 0.03;
 
 PhysicsEngine::PhysicsEngine() {
 	gravity.y = GRAV_DEFAULT;
 	timestep = TIMESTEP_DEFAULT;
+	reductionVel = 35 * timestep * gravity.getMagnitude();
+	staticVel = 0.001;
 }
 
 PhysicsEngine::PhysicsEngine(double timestep, const Vector3D& gravity) {
 	this->gravity = gravity;
 	this->timestep = timestep;
 	reductionVel = 2 * timestep * timestep * gravity.getMagnitudeSquared();
+	staticVel = 0.1;
 }
 
 void PhysicsEngine::addRigidBody(RigidBody* body) {
@@ -40,8 +43,7 @@ void PhysicsEngine::pushBodiesApart(RigidBody* collider, RigidBody* collidee, co
 	collidee->translate(cldeTransform);
 }
 
-void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Point3D* colPoint, double restitutionFactor) {
-	double restitution = collidee->getRestitution() * restitutionFactor;
+void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Point3D* colPoint, double restitution, bool contactCollision) {
 	//Vector3D nV(*(colSurface->getPoints()->at(0)), *(colSurface->getNormalVectorPoint()));
 	//if (nV.y >= 0 && collidee->getInverseMass() == 0)
 	//	std::cout << colSurface->getPoints()->at(0)->y << "\n";
@@ -58,20 +60,24 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 	vCldeP0.sub(vCldrP0, &velRel);
 	Vector3D rClde(*(collidee->getCenterOfMass()), *colPoint);
 	Vector3D rCldr(*(collider->getCenterOfMass()), *colPoint);
-	Vector3D jRotAxis;
-	rCldr.crossProduct(nV, &jRotAxis);
-	double invIClde = collidee->findInverseInertiaOfAxis(jRotAxis);
-	double invICldr = collider->findInverseInertiaOfAxis(jRotAxis);
+	Vector3D jRotAxisCldr;
+	Vector3D jRotAxisClde;
+	rCldr.crossProduct(nV, &jRotAxisCldr);
+	rClde.crossProduct(nV, &jRotAxisClde);
+	double invIClde = collidee->findInverseInertiaOfAxis(jRotAxisClde);
+	double invICldr = collider->findInverseInertiaOfAxis(jRotAxisCldr);
+	double normVel = nV.dotProduct(velRel);
 	Vector3D rCldeXn;
 	rClde.crossProduct(nV, &rCldeXn);
 	Vector3D rCldrXn;
 	rCldr.crossProduct(nV, &rCldrXn);
-
-	if (velRel.getMagnitudeSquared() < reductionVel) {
-		//restitution = 0;
+	static double lowestVel = 10;
+	if (normVel < lowestVel) {
+		lowestVel = normVel;
 	}
 
-	double numerator = -(restitution + 1) * nV.dotProduct(velRel);
+
+	double numerator = -(restitution + 1) * normVel;
 	double denomenator = (collider->getInverseMass() + collidee->getInverseMass() + rCldrXn.getMagnitudeSquared() * invICldr + rCldeXn.getMagnitudeSquared() * invIClde);
 
 	double impulseMagnitude = abs(numerator / denomenator);
@@ -79,13 +85,16 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 	nV.multiply(impulseMagnitude, &impulse);
 
 	Vector3D velParralel;
-	nV.multiply(nV.dotProduct(velRel), &velParralel);
+	nV.multiply(normVel, &velParralel);
 	Vector3D k;
 	Vector3D frictionImpulse;
 	velRel.sub(velParralel, &k);
 	if (k.notZero()) {
 		k.getUnitVector(&k);
-		rCldr.crossProduct(k, &jRotAxis);
+		rCldr.crossProduct(k, &jRotAxisCldr);
+		rClde.crossProduct(k, &jRotAxisClde);
+		invIClde = collidee->findInverseInertiaOfAxis(jRotAxisClde);
+		invICldr = collider->findInverseInertiaOfAxis(jRotAxisCldr);
 		numerator = k.dotProduct(velRel);
 		Vector3D rCldrXk;
 		rCldr.crossProduct(k, &rCldrXk);
@@ -93,14 +102,16 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 		rCldr.crossProduct(k, &rCldeXk);
 		denomenator = (collider->getInverseMass() + collidee->getInverseMass() + rCldrXk.getMagnitudeSquared() * invICldr + rCldeXk.getMagnitudeSquared() * invIClde);
 		double frictionImpMag = abs(numerator / denomenator);
-		if (frictionImpMag > impulseMagnitude * collidee->getFriction()) {
-			frictionImpMag = impulseMagnitude * collidee->getFriction();
+		//std::cout << contactCollision << ", " << (velParralel.getMagnitudeSquared() < staticVel) << "\n";
+		double maxFriction = (contactCollision && velParralel.getMagnitudeSquared() < staticVel)? 30 * impulseMagnitude : impulseMagnitude * collidee->getFriction();
+		if (frictionImpMag > maxFriction) {
+			frictionImpMag = maxFriction;
 		}
 		k.multiply(frictionImpMag, &frictionImpulse);
 	}
-	/*Vector3D up(0, -1, 0);
+	//Vector3D up(0, -1, 0);
 
-	Vector3D pVel;
+	/*Vector3D pVel;
 	collider->getVelocityOfPoint(*colPoint, &pVel);
 	Vector3D pRot;
 	Vector3D comP(*(collider->getCenterOfMass()), *colPoint);
@@ -118,8 +129,8 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 
 	if (frictionImpulse.notZero()) {
 		
-		/*std::cout << "curr veloc: " << collider->getAngularVelocity()->dotProduct(up) << "\n";
-		Vector3D pVel;
+		//std::cout << "curr veloc: " << collider->getAngularVelocity()->dotProduct(up) << "\n";
+		/*Vector3D pVel;
 		collider->getVelocityOfPoint(*colPoint, &pVel);
 		Vector3D pRot;
 		Vector3D comP(*(collider->getCenterOfMass()), *colPoint);
@@ -127,7 +138,7 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 		comP.crossProduct(pVel, &pRot);
 		std::cout << "pRotVel: " << pRot.dotProduct(up) << "\n";*/
 
-		double angVelBefore = collider->getAngularVelocity()->getMagnitudeSquared();
+		//double angVelBefore = collider->getAngularVelocity()->getMagnitudeSquared();
 		collider->applyImpulseAtPosition(frictionImpulse, *colPoint);
 
 		
@@ -152,15 +163,19 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 }
 
 void PhysicsEngine::iterateEngineTimestep() {
+	for (RigidBody* body : rigidBodies) {
+		//std::cout << body->getVelocity()->x << ", " << body->getVelocity()->y << ", " << body->getVelocity()->z << "\n";
+		//std::cout << body->getAngularVelocity()->getMagnitude() << " " << body->getVelocity()->getMagnitude() << "\n";
+	}
 	Vector3D gravityAcceleration(gravity.x * timestep, gravity.y * timestep, gravity.z * timestep);
 	for (RigidBody* body : rigidBodies) {
 		body->acclerateLineraly(gravityAcceleration);
 		body->moveInTime(timestep);
 	}
-	for (RigidBody* body1 : rigidBodies) {
-		for (RigidBody* body2 : rigidBodies) {
-			if (body1 == body2)
-				continue;
+	for (int i = 0; i < rigidBodies.size(); i++) {
+		for (int j = i + 1; j < rigidBodies.size(); j++) {
+			RigidBody* body1 = rigidBodies.at(i);
+			RigidBody* body2 = rigidBodies.at(j);
 			if (!body1->bodiesInCollisionRange(*body2))
 				continue;
 
@@ -210,15 +225,28 @@ void PhysicsEngine::iterateEngineTimestep() {
 						collidee = body1;
 					}
 
-					int maxCollisions = 4;
-					double restitutionMultiplier = 1;
-					double restitutionReductionFactor = 0.5;
+					int maxCollisions = 16 * colInfo->size();
+					//double restitutionMultiplier = 1;
+					//double restitutionReductionFactor = 0.5;
 					int colCount = 0;
+					bool contactCollision = false;
+					if (colInfo->size() != 1) {
+						Vector3D vCldrP0;
+						collider->getVelocityOfPoint(*colInfo->at(0)->point, &vCldrP0);
+						Vector3D vCldeP0;
+						collidee->getVelocityOfPoint(*colInfo->at(0)->point, &vCldeP0);
+						Vector3D velRel;
+						vCldeP0.sub(vCldrP0, &velRel);
+						double normVel = colInfo->at(0)->colNormVector->dotProduct(velRel);
+						contactCollision = normVel < reductionVel;
+					}
+					bool dampenCollision = contactCollision;
+					//static bool iterateForwards = true;
 
 					int k = colInfo->size();
 
 					if (colInfo->size() == 1) {
-						resolveImpulses(collider, collidee, *colInfo->at(0)->colNormVector, colInfo->at(0)->point, restitutionMultiplier);
+						resolveImpulses(collider, collidee, *colInfo->at(0)->colNormVector, colInfo->at(0)->point, (collidee->getRestitution() + collider->getRestitution()) / 2.0, false);
 						pushBodiesApart(collider, collidee, *colInfo->at(0)->colNormVector, colInfo->at(0)->penDepth);
 					}
 					else {
@@ -228,15 +256,43 @@ void PhysicsEngine::iterateEngineTimestep() {
 								if (collider->verifyCollisionPointNotExiting(*collidee, *colInfo->at(i)->colNormVector, *colInfo->at(i)->point)) {
 									colTriggered = true;
 									colCount++;
-									resolveImpulses(collider, collidee, *colInfo->at(i)->colNormVector, colInfo->at(i)->point, restitutionMultiplier);
-									restitutionMultiplier *= restitutionReductionFactor;
+									//RigidBody::ColPointInfo* pInfo = iterateForwards ? colInfo->at(i) : colInfo->at(colInfo->size() - i);
+									RigidBody::ColPointInfo* pInfo = colInfo->at(i);
+									//resolveImpulses(collider, collidee, *colInfo->at(i)->colNormVector, colInfo->at(i)->point, -0.3);
+									resolveImpulses(collider, collidee, *colInfo->at(i)->colNormVector, colInfo->at(i)->point, dampenCollision? -0.5 : collidee->getRestitution(), contactCollision);
+									//restitutionMultiplier *= restitutionReductionFactor;
+								}
+							}
+							if (!colTriggered) {
+								if (dampenCollision) {
+									dampenCollision = false;
+									colCount = 0;
+									continue;
+								}
+								break;
+							}
+						}
+
+						/*colCount = 0;
+						while (colCount < maxCollisions) {
+							bool colTriggered = false;
+							for (int i = 1; colCount < maxCollisions && i < colInfo->size(); i++) {
+								if (collider->verifyCollisionPointNotExiting(*collidee, *colInfo->at(i)->colNormVector, *colInfo->at(i)->point)) {
+									colTriggered = true;
+									colCount++;
+									//RigidBody::ColPointInfo* pInfo = iterateForwards ? colInfo->at(i) : colInfo->at(colInfo->size() - i);
+									RigidBody::ColPointInfo* pInfo = colInfo->at(i);
+									//resolveImpulses(collider, collidee, *colInfo->at(i)->colNormVector, colInfo->at(i)->point, -0.3);
+									resolveImpulses(collider, collidee, *pInfo->colNormVector, pInfo->point, collidee->getRestitution());
+									//restitutionMultiplier *= restitutionReductionFactor;
 								}
 							}
 							if (!colTriggered)
 								break;
-						}
+						}*/
 						//resolveImpulses(collider, collidee, *colInfo->at(0)->colNormVector, colInfo->at(0)->point, restitutionMultiplier);
 						pushBodiesApart(collider, collidee, *colInfo->at(0)->colNormVector, colInfo->at(0)->penDepth);
+						//iterateForwards = !iterateForwards;
 					}
 
 				}
