@@ -242,13 +242,13 @@ void RigidBody::findBodyMassAndInertia(double density) {
 			f += b21 * (a1 + a21 / 2);
 			fA += 0.5 * b21 * (a1 * a1 + a1 * a21 + a21 * a21 / 3);
 			fB += -0.5 * a21 * (b1 * b1 + b1 * b21 + b21 * b21 / 3);
-			fAB += 0.5 * b21 * (b21 * a1 * a1 + a1 * a21 * b1 + b1 * a21 * a21 / 3.0 + a1 * a1 / 2.0 + 2 * a1 * a21 / 3.0 + a21 * a21 / 4.0);
+			fAB += 0.5 * b21 * (b1 * (a1 * a1 + a1 * a21 + a21 * a21 / 3) + b21 * (a1 * a1 / 2.0 + 2 * a1 * a21 / 3.0 + a21 * a21 / 4.0));
 			fASqrd += (1 / 3.0) * b21 * (a1 * a1 * a1 + 3 * a1 * a1 * a21 / 2.0 + a1 * a21 * a21 + a21 * a21 * a21 / 4.0);
 			fBSqrd += -(1/3.0) * a21 * (b1 * b1 * b1 + 3 * b1 * b1 * b21 / 2.0 + b1 * b21 * b21 + b21 * b21 * b21 / 4.0);
 			fASqrdB += (1 / 3.0) * b21 * (b1 * (a1 * a1 * a1 + 3 * a1 * a1 * a21 / 2.0 + a1 * a21 * a21 + a21 * a21 * a21 / 4.0)
-				+ (a1 * a1 * a1 / 2.0 + a1 * a1 * a21 + 3 * a1 * a21 * a21 / 4.0 + a21 * a21 * a21 / 5.0));
+				+ b21 * (a1 * a1 * a1 / 2.0 + a1 * a1 * a21 + 3 * a1 * a21 * a21 / 4.0 + a21 * a21 * a21 / 5.0));
 			fBSqrdA += -(1 / 3.0) * a21 * (a1 * (b1 * b1 * b1 + 3 * b1 * b1 * b21 / 2.0 + b1 * b21 * b21 + b21 * b21 * b21 / 4.0)
-				+ (b1 * b1 * b1 / 2.0 + b1 * b1 * b21 + 3 * b1 * b21 * b21 / 4.0 + b21 * b21 * b21 / 5.0));
+				+ a21 * (b1 * b1 * b1 / 2.0 + b1 * b1 * b21 + 3 * b1 * b21 * b21 / 4.0 + b21 * b21 * b21 / 5.0));
 			fACbd += 0.25 * b21 * (a1 * a1 * a1 * a1 + 2 * a1 * a1 * a1 * a21 + 2 * a1 * a1 * a21 * a21 + a1 * a21 * a21 * a21 + a21 * a21 * a21 * a21 / 5.0);
 			fBCbd += -0.25 * a21 * (b1 * b1 * b1 * b1 + 2 * b1 * b1 * b1 * b21 + 2 * b1 * b1 * b21 * b21 + b1 * b21 * b21 * b21 + b21 * b21 * b21 * b21 / 5.0);
 		}
@@ -276,7 +276,7 @@ void RigidBody::findBodyMassAndInertia(double density) {
 		*sCCbd = -invC * invC * invC * invC * (k * k * k * f + nA * nA * nA * fACbd + nB * nB * nB * fBCbd + 3 * k * nA * nA * fASqrd + 3 * k * nB * nB * fBSqrd +
 			3 * nA * nA * nB * fASqrdB + 3 * nA * nB * nB * fBSqrdA + 3 * k * k * nA * fA + 3 * k * k * nB * fB + 6 * k * nA * nB * fAB);
 
-		//printf("sACbd: %f, sBCbd: %f, sCCbd: %f\n", *sACbd, fBCbd, *sCCbd);
+		printf("sZSqrd: %f, sASqrd: %f, sBSqrd: %f, sCSqrd: %f\n", sZSqrd, *sASqrd, *sBSqrd, *sCSqrd);
 
 		v += normV.x * sX;
 		vX += 0.5 * normV.x * sXSqrd;

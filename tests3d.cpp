@@ -160,10 +160,10 @@ int main() {
 			}
 			Vector3D axis(0, 1, 0);
 			axis.getUnitVector(&axis);
-			transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, x, y, z, 3.14159 / 4.0);
+			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, x, y, z, 3.14159 / 3.0);
 			Vector3D axis2(0, 0, 1);
 			axis2.getUnitVector(&axis2);
-			transformation3D::rotatePointsAroundArbitraryAxis(&points, axis2, x, y, z, -3.14159 / 4.0);
+			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis2, x, y, z, -3.14159 / 3.0);
 			RigidBody* b1 = new RigidBody(*createRigidBodyFromPolygons(*b1polygons), 1, 0.5, 0.3, false);
 			pEngine.addRigidBody(b1);
 			delete b1polygons;
