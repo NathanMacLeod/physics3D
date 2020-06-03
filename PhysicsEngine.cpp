@@ -3,7 +3,7 @@
 
 
 const double GRAV_DEFAULT = 20;
-const double TIMESTEP_DEFAULT = 0.03;
+const double TIMESTEP_DEFAULT = 0.015;
 
 PhysicsEngine::PhysicsEngine() {
 	gravity.y = GRAV_DEFAULT;
@@ -188,8 +188,8 @@ void PhysicsEngine::iterateEngineTimestep() {
 			int max = 3;
 			while (collisionsOccuring && count < max) {
 				count++;
-				body1->findCollisionInformationAsCollider(&b1ColInfo, *body2);
-				body2->findCollisionInformationAsCollider(&b2ColInfo, *body1);
+				body1->findCollisionInformationAsCollider(&b1ColInfo, *body2, timestep);
+				body2->findCollisionInformationAsCollider(&b2ColInfo, *body1, timestep);
 
 				std::vector<RigidBody::ColPointInfo*>* colInfo = nullptr;
 				RigidBody* collider = nullptr;
@@ -202,16 +202,13 @@ void PhysicsEngine::iterateEngineTimestep() {
 				else if (b1ColInfo.size() == 0) {
 					b1Collider = false;
 				}
-				else if (b2ColInfo.size() == 0) {
+				else if (b2ColInfo.size() == 0 || b1ColInfo.at(0)->penDepth > b2ColInfo.at(0)->penDepth) {
 					b1Collider = true;
 				}
-				else if (b1ColInfo.at(0)->edgeCollision && !b2ColInfo.at(0)->edgeCollision) {
+				else {
 					b1Collider = false;
 				}
-				else if (!(!b1ColInfo.at(0)->edgeCollision && b2ColInfo.at(0)->edgeCollision) &&
-					(b1ColInfo.at(0)->penDepth < b2ColInfo.at(0)->edgeCollision)) {
-					b1Collider = false;
-				}
+
 				if (collisionsOccuring) {
 
 					if (b1Collider) {
@@ -232,12 +229,12 @@ void PhysicsEngine::iterateEngineTimestep() {
 					bool contactCollision = false;
 					if (colInfo->size() != 1) {
 						Vector3D vCldrP0;
-						collider->getVelocityOfPoint(*colInfo->at(0)->point, &vCldrP0);
+						collider->getVelocityOfPoint(colInfo->at(0)->point, &vCldrP0);
 						Vector3D vCldeP0;
-						collidee->getVelocityOfPoint(*colInfo->at(0)->point, &vCldeP0);
+						collidee->getVelocityOfPoint(colInfo->at(0)->point, &vCldeP0);
 						Vector3D velRel;
 						vCldeP0.sub(vCldrP0, &velRel);
-						double normVel = colInfo->at(0)->colNormVector->dotProduct(velRel);
+						double normVel = colInfo->at(0)->colNormVector.dotProduct(velRel);
 						contactCollision = normVel < reductionVel;
 					}
 					bool dampenCollision = contactCollision;
@@ -245,56 +242,27 @@ void PhysicsEngine::iterateEngineTimestep() {
 
 					int k = colInfo->size();
 
-					if (colInfo->size() == 1) {
-						resolveImpulses(collider, collidee, *colInfo->at(0)->colNormVector, colInfo->at(0)->point, (collidee->getRestitution() + collider->getRestitution()) / 2.0, false);
-						pushBodiesApart(collider, collidee, *colInfo->at(0)->colNormVector, colInfo->at(0)->penDepth);
-					}
-					else {
-						while (colCount < maxCollisions) {
-							bool colTriggered = false;
-							for (int i = 1; colCount < maxCollisions && i < colInfo->size(); i++) {
-								if (collider->verifyCollisionPointNotExiting(*collidee, *colInfo->at(i)->colNormVector, *colInfo->at(i)->point)) {
-									colTriggered = true;
-									colCount++;
-									//RigidBody::ColPointInfo* pInfo = iterateForwards ? colInfo->at(i) : colInfo->at(colInfo->size() - i);
-									RigidBody::ColPointInfo* pInfo = colInfo->at(i);
-									//resolveImpulses(collider, collidee, *colInfo->at(i)->colNormVector, colInfo->at(i)->point, -0.3);
-									resolveImpulses(collider, collidee, *colInfo->at(i)->colNormVector, colInfo->at(i)->point, dampenCollision? -0.5 : collidee->getRestitution(), contactCollision);
-									//restitutionMultiplier *= restitutionReductionFactor;
-								}
-							}
-							if (!colTriggered) {
-								if (dampenCollision) {
-									dampenCollision = false;
-									colCount = 0;
-									continue;
-								}
-								break;
+					while (colCount < maxCollisions) {
+						bool colTriggered = false;
+						for (int i = 0; colCount < maxCollisions && i < colInfo->size(); i++) {
+							if (collider->verifyCollisionPointNotExiting(*collidee, colInfo->at(i)->colNormVector, colInfo->at(i)->point)) {
+								colTriggered = true;
+								colCount++;
+								RigidBody::ColPointInfo* pInfo = colInfo->at(i);
+								resolveImpulses(collider, collidee, colInfo->at(i)->colNormVector, &colInfo->at(i)->point,
+									dampenCollision? -0.5 : collidee->getRestitution(), contactCollision);
 							}
 						}
-
-						/*colCount = 0;
-						while (colCount < maxCollisions) {
-							bool colTriggered = false;
-							for (int i = 1; colCount < maxCollisions && i < colInfo->size(); i++) {
-								if (collider->verifyCollisionPointNotExiting(*collidee, *colInfo->at(i)->colNormVector, *colInfo->at(i)->point)) {
-									colTriggered = true;
-									colCount++;
-									//RigidBody::ColPointInfo* pInfo = iterateForwards ? colInfo->at(i) : colInfo->at(colInfo->size() - i);
-									RigidBody::ColPointInfo* pInfo = colInfo->at(i);
-									//resolveImpulses(collider, collidee, *colInfo->at(i)->colNormVector, colInfo->at(i)->point, -0.3);
-									resolveImpulses(collider, collidee, *pInfo->colNormVector, pInfo->point, collidee->getRestitution());
-									//restitutionMultiplier *= restitutionReductionFactor;
-								}
+						if (!colTriggered) {
+							if (dampenCollision) {
+								dampenCollision = false;
+								colCount = 0;
+								continue;
 							}
-							if (!colTriggered)
-								break;
-						}*/
-						//resolveImpulses(collider, collidee, *colInfo->at(0)->colNormVector, colInfo->at(0)->point, restitutionMultiplier);
-						pushBodiesApart(collider, collidee, *colInfo->at(0)->colNormVector, colInfo->at(0)->penDepth);
-						//iterateForwards = !iterateForwards;
+							break;
+						}
 					}
-
+					pushBodiesApart(collider, collidee, colInfo->at(0)->colNormVector, colInfo->at(0)->penDepth);				
 				}
 
 				for (int i = 1; i < b1ColInfo.size(); i++) {

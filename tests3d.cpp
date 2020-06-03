@@ -77,7 +77,7 @@ int main() {
 	float queuedTime = 0;
 	std::vector<Polygon3D*>* allPolygons = new std::vector<Polygon3D*>();
 
-	std::vector<Polygon3D*>* b1polygons = createBox(10, 10, 10, 0, -23.6, 100);
+	std::vector<Polygon3D*>* b1polygons = createBox(3, 3, 30, 0, -23.6, 100);
 	std::vector<Polygon3D*>* b2polygons = createBox(100, 5, 100, 0, 30, 100);
 	//RigidBody* b1 = new RigidBody(*createRigidBodyFromPolygons(*b1polygons), 1, 1, 0.3, false);
 	RigidBody* b2  = new RigidBody(*createRigidBodyFromPolygons(*b2polygons), 1, 0.3, 0.3, true);
@@ -135,7 +135,7 @@ int main() {
 			double x = 0;// 55;
 			double y = -20;
 			double z = 100;
-			std::vector<Polygon3D*>* b1polygons = createBox(10, 10, 10, x, y, z);
+			std::vector<Polygon3D*>* b1polygons = createBox(40, 10, 10, x, y, z);
 			
 			std::vector<Point3D*> points;
 			for (Polygon3D* polygon : *b1polygons) {

@@ -276,7 +276,7 @@ void RigidBody::findBodyMassAndInertia(double density) {
 		*sCCbd = -invC * invC * invC * invC * (k * k * k * f + nA * nA * nA * fACbd + nB * nB * nB * fBCbd + 3 * k * nA * nA * fASqrd + 3 * k * nB * nB * fBSqrd +
 			3 * nA * nA * nB * fASqrdB + 3 * nA * nB * nB * fBSqrdA + 3 * k * k * nA * fA + 3 * k * k * nB * fB + 6 * k * nA * nB * fAB);
 
-		printf("sZSqrd: %f, sASqrd: %f, sBSqrd: %f, sCSqrd: %f\n", sZSqrd, *sASqrd, *sBSqrd, *sCSqrd);
+		//printf("sZSqrd: %f, sASqrd: %f, sBSqrd: %f, sCSqrd: %f\n", sZSqrd, *sASqrd, *sBSqrd, *sCSqrd);
 
 		v += normV.x * sX;
 		vX += 0.5 * normV.x * sXSqrd;
@@ -310,7 +310,7 @@ void RigidBody::findBodyMassAndInertia(double density) {
 	inertiaTensor[7] = inertiaTensor[5];
 
 	
-	for (int i = 0; i < 9; i++) {
+	/*for (int i = 0; i < 9; i++) {
 		printf("%f, ", inertiaTensor[i]);
 		if ((i + 1) % 3 == 0)
 			printf("\n");
@@ -319,176 +319,9 @@ void RigidBody::findBodyMassAndInertia(double density) {
 	printf("%f, %f, %f\n", centerOfMass.x, centerOfMass.y, centerOfMass.z);
 
 	printf("%f\n", mass);
-	printf("____________________________________\n");
+	printf("____________________________________\n");*/
 	
 }
-
-/*
-//todo: do this in not dumb way
-void RigidBody::findBodyMassAndInertia(double particleMass, double particleSpacing) {
-	double lowestX = 0;
-	double greatestX = 0;
-	double lowestY = 0;
-	double greatestY = 0;
-	double lowestZ = 0;
-	double greatestZ = 0;
-	bool firstPass = true;
-	for (RigidSurface* surface : surfaces) {
-		for (Point3D* p : *(surface->getPoints())) {
-			if (firstPass || p->x < lowestX)
-				lowestX = p->x;
-			if (firstPass || p->x > greatestX)
-				greatestX = p->x;
-
-			if (firstPass || p->y < lowestY)
-				lowestY = p->y;
-			if (firstPass || p->y > greatestY)
-				greatestY = p->y;
-
-			if (firstPass || p->z < lowestZ)
-				lowestZ = p->z;
-			if (firstPass || p->z > greatestZ)
-				greatestZ= p->z;
-
-			firstPass = false;
-		}
-	}
-	int numPoints = 0;
-	std::vector<Point3D**> integrationLineBoundries;
-	//iterate along planes parralel to yz plane, find surfaces that intersect plane
-	//next iterate along lines parralel to z axis, find where the line enters and exits the body
-	//finally iterate along the line, create point masses
-	Vector3D yzPlaneNormalVector(1, 0, 0);
-	Vector3D xzPlaneNormalVector(0, 1, 0);
-
-	std::vector<RigidSurface*> intersectingPlanes;
-	std::vector<double*> planesYRange;
-	int nplanes = 0;
-	int nlines = 0;
-	int npoints = 0;
-	for(double x = lowestX; x < greatestX; x += particleSpacing) {
-		nplanes++;
-		intersectingPlanes.clear();
-		for (double* bounds : planesYRange) {
-			delete[] bounds;
-		}
-		planesYRange.clear();
-		for (RigidSurface* surface : surfaces) {
-			double bound1;
-			double bound2;
-			bool intersectFound = false;
-			bool intersect2Found = false;
-			for (int i = 0; i < surface->getPoints()->size(); i++) {
-				Point3D* p1 = surface->getPoints()->at(i);
-				Point3D* p2 = ((i == surface->getPoints()->size() - 1)? surface->getPoints()->at(0) : surface->getPoints()->at(i + 1));
-				if ((p1->x > x && p2->x < x) || (p1->x < x && p2->x > x)) {
-					double intersectYVal = p1->y - (p1->x - x) * (p2->y - p1->y) / (p2->x - p1->x);
-					if (intersectFound) {
-						bound2 = intersectYVal;
-						intersect2Found = true;
-						break;
-					}
-					else {
-						intersectFound = true;
-						bound1 = intersectYVal;
-					}
-				}
-			}
-			if (!intersectFound || !intersect2Found)
-				continue;
-
-			if (bound1 == bound2)
-				continue;
-
-			double* bounds = new double[2];
-			if (bound1 > bound2) {
-				bounds[0] = bound2;
-				bounds[1] = bound1;
-			}
-			else {
-				bounds[0] = bound1;
-				bounds[1] = bound2;
-			}
-			//std::cout << "   Y Bounds:" << bounds[0] << " " << bounds[1] << "\n";
-			intersectingPlanes.push_back(surface);
-			planesYRange.push_back(bounds);
-		}
-		for (double y = lowestY; y < greatestY; y += particleSpacing) {
-			double zMin = 0;
-			double zMax = 0;
-			bool firstMatch = true;
-			for (int i = 0; i < planesYRange.size(); i++) {
-				if (y < planesYRange.at(i)[0] || y > planesYRange.at(i)[1])
-					continue;
-				Point3D* p1 = intersectingPlanes.at(i)->getPoints()->at(0);
-				Vector3D planeNV(*p1, *(intersectingPlanes.at(i)->getNormalVectorPoint()));
-				//std::cout << "      nV:" << planeNV.x << ", " << planeNV.y << ", " << planeNV.z << "\n";
-				double zIntersect = p1->z - (planeNV.x * (x - p1->x) + planeNV.y * (y - p1->y)) / planeNV.z;
-				if (firstMatch) {
-					firstMatch = false;
-					zMin = zIntersect;
-					zMax = zIntersect;
-					continue;
-				}
-				if (zMin > zIntersect)
-					zMin = zIntersect;
-				if (zMax < zIntersect)
-					zMax = zIntersect;
-			}
-			nlines++;
-			
-			//std::cout << "      zMin:" << zMin << " zMax:" << zMax << "\n";
-			Point3D* min = new Point3D(x, y, zMin);
-			Point3D* max = new Point3D(x, y, zMax);
-			Point3D** line = new Point3D*[2]{ min, max };
-			integrationLineBoundries.push_back(line);
-			for (double z = zMin; z < zMax; z += particleSpacing) {
-				numPoints++;
-				centerOfMass.x += x;
-				centerOfMass.y += y;
-				centerOfMass.z += z;
-				npoints++;
-			}
-		}
-		//std::cout << "Num for Xcord " << x << ": " << numForPlane << "\n";
-	}
-	//std::cout << nplanes << " " << nlines << " " << npoints << "\n";
-	centerOfMass.x /= numPoints;
-	centerOfMass.y /= numPoints;
-	centerOfMass.z /= numPoints;
-	mass = particleMass * numPoints;
-	inverseMass = 1.0 / mass;
-	inertiaTensor = new double[9]{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-	for (Point3D** line : integrationLineBoundries) {
-		Point3D* zMin = line[0];
-		Point3D* zMax = line[1];
-		double rX = zMin->x - centerOfMass.x;
-		double rY = zMin->y - centerOfMass.y;
-		double rXSquared = rX * rX;
-		double rYSquared = rY * rY;
-		//std::cout << zMin->z << " " << zMax->z << "\n";
-		for (double z = zMin->z; z < zMax->z; z += particleSpacing) {
-			double rZ = z - centerOfMass.z;
-			double rZSquared = rZ * rZ;
-			inertiaTensor[0] += rYSquared + rZSquared;
-			inertiaTensor[1] += -rX * rY;
-			inertiaTensor[2] += -rX * rZ;
-			inertiaTensor[3] += -rY * rX;
-			inertiaTensor[4] += rXSquared + rZSquared;
-			inertiaTensor[5] += -rY * rZ;
-			inertiaTensor[6] += -rZ * rX;
-			inertiaTensor[7] += -rZ * rY;
-			inertiaTensor[8] += rXSquared + rYSquared;
-		}
-		delete zMin;
-		delete zMax;
-		delete[] line;
-	}
-	for (int i = 0; i < 9; i++) {
-		inertiaTensor[i] *= mass / numPoints;
-	}
-}
-*/
 
 Vector3D* RigidBody::findVectorRelativeToBodyFrame(const Vector3D vector, Vector3D* output) {
 	Vector3D orientationVector1(centerOfMass, orientationPoint1);
@@ -714,22 +547,18 @@ bool RigidBody::verifyCollisionPointNotExiting(const RigidBody body, const Vecto
 	return vPRelative.dotProduct(normalVector) < 0;
 }
 
-RigidBody::ColPointInfo::ColPointInfo(Point3D* point, Vector3D* colNormVector, bool edgeCollision, double penDepth) {
-	this->point = point;
-	this->colNormVector = colNormVector;
-	this->edgeCollision = edgeCollision;
+RigidBody::ColPointInfo::ColPointInfo(double x, double y, double z, Vector3D* colNormVector, double penDepth) {
+	this->point.x = x;
+	this->point.y = y;
+	this->point.z = z;
+	this->colNormVector.x = colNormVector->x;
+	this->colNormVector.y = colNormVector->y;
+	this->colNormVector.z = colNormVector->z;
 	this->penDepth = penDepth;
 }
 
-RigidBody::ColPointInfo::~ColPointInfo() {
-	delete colNormVector;
-	if (edgeCollision) {
-		delete point;
-	}
-}
 
-void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* colOutputs, RigidBody& body) {
-	bool pointInside = false;
+void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* colOutputs, RigidBody& body, double timestep) {
 	
 	for (Point3D* p : colPoints) {
 		//check if point is within collision radius to ignore points that cant possibly be inside
@@ -741,8 +570,6 @@ void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* c
 		if (!body.getPointInsideBody(*p)) {
 			continue;
 		}
-		pointInside = true;
-
 		//point can potentially be a collision point, now check to see if the ray from the center of mass to the point
 		//intersects any surfaces on body
 		RigidSurface* nearestPenetratedSurface = nullptr;
@@ -816,32 +643,31 @@ void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* c
 
 		Point3D* surfaceP1 = nearestPenetratedSurface->getPoints()->at(0);
 		Vector3D p1ToP(*surfaceP1, *p);
-		Vector3D* normalVector = new Vector3D(*surfaceP1, *(nearestPenetratedSurface->getNormalVectorPoint()));
-
-		bool pointNotExiting = verifyCollisionPointNotExiting(body, *normalVector, *p);
-
-		double penetrationDepth = abs(p1ToP.dotProduct(*normalVector));
-
+		Vector3D normalVector(*surfaceP1, *(nearestPenetratedSurface->getNormalVectorPoint()));
+		
+		bool pointNotExiting = verifyCollisionPointNotExiting(body, normalVector, *p);
+		if (!pointNotExiting) {
+			continue;
+		}
+		double penetrationDepth = abs(p1ToP.dotProduct(normalVector));
 		bool deepestPenPoint = colOutputs->size() == 0 || penetrationDepth > colOutputs->at(0)->penDepth;
 
-		ColPointInfo* info = new ColPointInfo(p, normalVector, false, penetrationDepth);
-
-		if (deepestPenPoint) {
-			if (colOutputs->size() != 0) {
-				colOutputs->at(0) = info;
-			}
-			else {
-				colOutputs->push_back(info);
-			}
-		}
+		ColPointInfo* info = new ColPointInfo(p->x, p->y, p->z, &normalVector, penetrationDepth);
 		colOutputs->push_back(info);
 	}
 	
-	if (getInverseMass() != 0 && !pointInside) {
-		//check for edge collisions
+	//check for edge collisions
+	if (!fixed) {
+
+		ColPointInfo* edgeCol = nullptr;
+
 		for (Edge* edge : colEdges) {
 			Point3D* p1 = edge->p1;
 			Point3D* p2 = edge->p2;
+
+			if (body.getPointInsideBody(*p1) || body.getPointInsideBody(*p2))
+				continue;
+
 			Vector3D p1p2(*p1, *p2);
 			Vector3D p1p2Unit;
 			p1p2.multiply(edge->inverseMagnitude, &p1p2Unit);
@@ -858,7 +684,7 @@ void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* c
 				Vector3D normalVector(*surfP1, *(potColSurface->getNormalVectorPoint()));
 				Vector3D p1Sp1(*p1, *surfP1);
 				Vector3D p2Sp1(*p2, *surfP1);
-					
+
 				if (p1Sp1.dotProduct(normalVector) * p2Sp1.dotProduct(normalVector) > 0)
 					continue;
 
@@ -870,9 +696,10 @@ void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* c
 				axisJ.crossProduct(p1p2Unit, &axisI);
 				int pointsAbove = 1;
 				int pointsBelow = 0;
- 				for (int i = 1; i < potColSurface->getPoints()->size() - 1; i++) {
+				for (int i = 1; i < potColSurface->getPoints()->size() - 1; i++) {
 					Vector3D lineP1(*p1, *(potColSurface->getPoints()->at(i)));
 					Vector3D lineP2(*p1, *(potColSurface->getPoints()->at(i + 1)));
+
 					double p1I = axisI.dotProduct(lineP1);
 					double p2I = axisI.dotProduct(lineP2);
 					//i coords dont intersect j axis
@@ -903,8 +730,8 @@ void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* c
 						perpDirection.multiply(-1, &perpDirection);
 						penDepth *= -1;
 					}
-					//choice of 1.5 arbitrary, tries to avoid improper collisions
-					if ((leastDepthPenetration != -1 && penDepth >= leastDepthPenetration) || penDepth > 0.3)
+					//choice of 5 arbitrary, tries to avoid improper collisions
+					if ((leastDepthPenetration != -1 && penDepth >= leastDepthPenetration) || penDepth > 1.5)
 						continue;
 					double lp1I = p1Lp1.dotProduct(p1p2Unit);
 					Vector3D p1Lp2(*p1, *lp2);
@@ -922,27 +749,33 @@ void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* c
 					perpDirection.multiply(penDepth, &perpComp);
 					p1ToCol.add(perpComp, &p1ToCol);
 
-					Point3D* colPoint = new Point3D(p1->x + p1ToCol.x, p1->y + p1ToCol.y, p1->z + p1ToCol.z);
-					if (!verifyCollisionPointNotExiting(body, perpDirection, *colPoint))
+					Point3D colPoint(p1->x + p1ToCol.x, p1->y + p1ToCol.y, p1->z + p1ToCol.z);
+					if (!verifyCollisionPointNotExiting(body, perpDirection, colPoint)) {
 						continue;
+					}
+
+					Vector3D colNV(perpDirection.x, perpDirection.y, perpDirection.z);
 					leastDepthPenetration = penDepth;
-					Vector3D* colNV = new Vector3D(perpDirection.x, perpDirection.y, perpDirection.z);
-					ColPointInfo* info = new ColPointInfo(colPoint, colNV, true, penDepth);
-					colOutputs->push_back(info);
-					return;
+					
+					ColPointInfo* info = new ColPointInfo(colPoint.x, colPoint.y, colPoint.z, &colNV, penDepth);
+					if (edgeCol != nullptr)
+						delete edgeCol;
+					edgeCol = info;
 				}
 			}
 		}
-		
-	}
 
+		if (edgeCol != nullptr)
+			colOutputs->push_back(edgeCol);
+
+	}
 	//sorting the colPoints with bubble sort, deepest penning points are resolved first.
 	if (colOutputs->size() > 1) {
 		int k = 1;
 		bool swp = false;
 		do {
 			bool swp = false;
-			for (int i = 1; i < colOutputs->size() - k; i++) {
+			for (int i = 0; i < colOutputs->size() - k; i++) {
 				if (colOutputs->at(i + 1)->penDepth > colOutputs->at(i)->penDepth) {
 					ColPointInfo* tmp = colOutputs->at(i + 1);
 					colOutputs->at(i + 1) = colOutputs->at(i);

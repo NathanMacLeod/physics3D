@@ -10,13 +10,11 @@ class RigidBody {
 public:
 	class ColPointInfo {
 	public:
-		Point3D* point;
-		Vector3D* colNormVector;
-		bool edgeCollision;
+		Point3D point;
+		Vector3D colNormVector;
 		double penDepth;
 
-		ColPointInfo(Point3D* point, Vector3D* colNormVector, bool edgeCollision, double penDepth);
-		~ColPointInfo();
+		ColPointInfo(double x, double y, double z, Vector3D* colNormVector, double penDepth);
 	};
 
 	class Edge {
@@ -63,7 +61,7 @@ public:
 	double getCollisionRadius() const;
 	double getCollisionRadiusSquared() const;
 	Vector3D* getAngularVelocity();
-	void findCollisionInformationAsCollider(std::vector<ColPointInfo*>* colOutputs, RigidBody& body);
+	void findCollisionInformationAsCollider(std::vector<ColPointInfo*>* colOutputs, RigidBody& body, double timestep);
 	bool getPointInsideBody(const Point3D point);
 	std::vector<RigidSurface*>* getSurfaces();
 	Point3D* getCenterOfMass();
