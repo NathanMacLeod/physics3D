@@ -48,7 +48,7 @@ void drawPinwheel(float dTheta, float r, float& theta, int* p, int numSegments, 
 			colorOfTriangle = orange;
 			break;
 		case 2:
-			colorOfTriangle = yellow;
+			//colorOfTriangle = yellow;
 			break;
 		case 3:
 			colorOfTriangle = green;

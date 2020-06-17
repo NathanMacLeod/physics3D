@@ -4,7 +4,7 @@
 #include <chrono>
 #include <vector>
 
-std::vector<Polygon3D*>* createBox(double x, double y, double z, double xPos, double yPos, double zPos) {
+/*std::vector<Polygon3D*>* createBox(double x, double y, double z, double xPos, double yPos, double zPos) {
 	std::vector<Polygon3D*>* polygons = new std::vector<Polygon3D*>();
 	Point3D* p1 = new Point3D(-x / 2.0, -y / 2.0, -z / 2.0);
 	Point3D* p2 = new Point3D(-x / 2.0, y / 2.0, -z / 2.0);
@@ -27,7 +27,7 @@ std::vector<Polygon3D*>* createBox(double x, double y, double z, double xPos, do
 	polygons->push_back(new Polygon3D(p1, p5, p2, black, blue));
 	polygons->push_back(new Polygon3D(p5, p6, p2, black, blue));
 
-	polygons->push_back(new Polygon3D(p2, p6, p4, black, Color::light_gray));
+	polygons->push_back(new Polygon3D(p2, p6, p4, black, light_gray));
 	polygons->push_back(new Polygon3D(p6, p8, p4, black, light_gray));
 
 	polygons->push_back(new Polygon3D(p1, p3, p5, black, gray));
@@ -65,7 +65,7 @@ std::vector<RigidSurface*>* createRigidBodyFromPolygons(std::vector<Polygon3D*>&
 	return surfaces;
 }
 
-int main() {
+int pain() {
 	ConsoleEngine engine(180, 180, 2);
 	PhysicsEngine pEngine;
 	engine.fillRect(0, 0, 180, 180, engine.PICZEL, blue);
@@ -234,6 +234,7 @@ int main() {
 		else {
 			xHeld = false;
 		}*/
+/*
 		if (v) {
 			//cameraPos.y += dTheta * 10;
 			if (!vHeld) {
@@ -270,3 +271,4 @@ int main() {
 	}
 	return 1;
 }
+*/

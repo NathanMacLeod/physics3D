@@ -3,7 +3,7 @@
 
 
 const double GRAV_DEFAULT = 20;
-const double TIMESTEP_DEFAULT = 0.015;
+const double TIMESTEP_DEFAULT = 0.035;
 
 PhysicsEngine::PhysicsEngine() {
 	gravity.y = GRAV_DEFAULT;
