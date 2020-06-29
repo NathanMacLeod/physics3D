@@ -64,9 +64,7 @@ std::vector<RigidSurface*>* createRigidBodyFromPolygons(std::vector<Polygon3D*>&
 	for (Polygon3D* polygon : polygons) {
 		Vector3D v1(*(polygon->p1), *(polygon->p2));
 		Vector3D v2(*(polygon->p1), *(polygon->p3));
-		Vector3D normalVector;
-		v1.crossProduct(v2, &normalVector);
-		normalVector.getUnitVector(&normalVector);
+		Vector3D normalVector = (v1.crossProduct(v2)).getUnitVector();
 		std::vector<Point3D*>* points = new std::vector<Point3D*>();
 		points->push_back(polygon->p1);
 		points->push_back(polygon->p2);
@@ -170,7 +168,7 @@ public:
 		if (useZBuffer) {
 			Vector3D v1(p1, p2);
 			Vector3D v2(p1, p3);
-			v1.crossProduct(v2, &normalVector);
+			normalVector = v1.crossProduct(v2);
 			invNz = 1.0 / normalVector.z;
 		}
 		const Point3D* upperPoint = &p1;
@@ -303,12 +301,12 @@ public:
 	Color getPhongLighting(Color surfColor, Vector3D& camDir, Vector3D& surfNV, Vector3D& lightDir) {
 		Vector3D ambColor(255, 255, 255);
 		double ambBrightness = 0.6;
-		ambColor.multiply(ambBrightness, &ambColor);
+		ambColor = ambColor.multiply(ambBrightness);
 		Vector3D dirColor(255, 255, 255);
 		double dirBrightness = 1;
 		Vector3D specColor = dirColor;
 		double dirLight = (surfNV.dotProduct(lightDir) > 0) ? surfNV.dotProduct(lightDir) : 0;
-		dirColor.multiply(dirLight * dirBrightness, &dirColor);
+		dirColor = dirColor.multiply(dirLight * dirBrightness);
 		
 		ambColor.x *= getR(surfColor) / 255.0;
 		ambColor.y *= getG(surfColor) / 255.0;
@@ -319,19 +317,15 @@ public:
 		dirColor.z *= getB(surfColor) / 255.0;
 
 		int shinyC = 32;
-		Vector3D refl;
-		surfNV.multiply(-2 * surfNV.dotProduct(lightDir), &refl);
-		refl.add(lightDir, &refl);
+		Vector3D refl = surfNV.multiply(-2 * surfNV.dotProduct(lightDir)).add(lightDir);
 		double dot = -refl.dotProduct(camDir);
 		double c = 1;
 		for (int i = 0; i < shinyC; i++)
 			c *= dot;
 
-		specColor.multiply(c, &specColor);
+		specColor = specColor.multiply(c);
 
-		Vector3D totalColor;
-		ambColor.add(dirColor, &totalColor);
-		totalColor.add(specColor, &totalColor);
+		Vector3D totalColor = ambColor.add(dirColor).add(specColor);
 
 		if (totalColor.x > 255)
 			totalColor.x = 255;
@@ -355,8 +349,7 @@ public:
 			Vector3D cameraToPolygon(polygon->p2->x - cameraPosition.x, polygon->p2->y - cameraPosition.y, polygon->p2->z - cameraPosition.z);
 			Vector3D p1p2(polygon->p2->x - polygon->p1->x, polygon->p2->y - polygon->p1->y, polygon->p2->z - polygon->p1->z);
 			Vector3D p1p3(polygon->p3->x - polygon->p1->x, polygon->p3->y - polygon->p1->y, polygon->p3->z - polygon->p1->z);
-			Vector3D normalVector;
-			p1p2.crossProduct(p1p3, &normalVector);
+			Vector3D normalVector = p1p2.crossProduct(p1p3);
 			if (cameraToPolygon.dotProduct(normalVector) < 0) {
 				polygon->copyPointsToTemp();
 				points.push_back(polygon->tempP1);
@@ -386,11 +379,9 @@ public:
 			//TODO IMPLEMENT NOT DUMB
 			Vector3D p1p2(polygon->p2->x - polygon->p1->x, polygon->p2->y - polygon->p1->y, polygon->p2->z - polygon->p1->z);
 			Vector3D p1p3(polygon->p3->x - polygon->p1->x, polygon->p3->y - polygon->p1->y, polygon->p3->z - polygon->p1->z);
-			Vector3D normalVector;
-			p1p2.crossProduct(p1p3, &normalVector);
-			normalVector.getUnitVector(&normalVector);
+			Vector3D normalVector = p1p2.crossProduct(p1p3).getUnitVector();
 			Vector3D lightDir(1, -1, -1);
-			lightDir.getUnitVector(&lightDir);
+			lightDir = lightDir.getUnitVector();
 
 			//Color color = getPhongLighting(polygon->color, camDir, normalVector, lightDir);
 			//FillTriangle(polygon->tempP1->x, polygon->tempP1->y, polygon->tempP2->x, polygon->tempP2->y, polygon->tempP3->x, polygon->tempP3->y, olc::Pixel(getR(color), getG(color), getB(color)));
@@ -468,10 +459,10 @@ public:
 					points.push_back(polygon->p3);
 			}
 			Vector3D axis(0, 1, 0);
-			axis.getUnitVector(&axis);
+			axis = axis.getUnitVector();
 			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, x, y, z, 3.14159 / 3.0);
 			Vector3D axis2(0, 0, 1);
-			axis2.getUnitVector(&axis2);
+			axis2 = axis2.getUnitVector();
 			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis2, x, y, z, -3.14159 / 3.0);
 			RigidBody* b1 = new RigidBody(*createRigidBodyFromPolygons(*b1polygons), 1, 0.5, 0.3, false);
 			pEngine.addRigidBody(b1);

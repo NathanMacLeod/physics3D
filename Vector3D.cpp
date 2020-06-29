@@ -31,41 +31,43 @@ double Vector3D::dotProduct(const Vector3D vector) const {
 	return  x * vector.x + y * vector.y + z * vector.z;
 }
 
-Vector3D* Vector3D::getUnitVector(Vector3D* output) const {
+Vector3D Vector3D::getUnitVector() const {
+	Vector3D output;
 	double inverseMagnitude = 1 / getMagnitude();
-	output->x = x * inverseMagnitude;
-	output->y = y * inverseMagnitude;
-	output->z = z * inverseMagnitude;
+	output.x = x * inverseMagnitude;
+	output.y = y * inverseMagnitude;
+	output.z = z * inverseMagnitude;
 	return output;
 }
 
-Vector3D* Vector3D::crossProduct(const Vector3D vector, Vector3D* output) const {
-	double newX = y * vector.z - z * vector.y;
-	double newY = z * vector.x - x * vector.z;
-	double newZ = x * vector.y - y * vector.x;
-	output->x = newX;
-	output->y = newY;
-	output->z = newZ;
+Vector3D Vector3D::crossProduct(const Vector3D vector) const {
+	Vector3D output;
+	output.x = y * vector.z - z * vector.y;
+	output.y = z * vector.x - x * vector.z;
+	output.z = x * vector.y - y * vector.x;
 	return output;
 }
 
-Vector3D* Vector3D::add(const Vector3D vector, Vector3D* output) const {
-	output->x = x + vector.x;
-	output->y = y + vector.y;
-	output->z = z + vector.z;
+Vector3D Vector3D::add(const Vector3D vector) const {
+	Vector3D output;
+	output.x = x + vector.x;
+	output.y = y + vector.y;
+	output.z = z + vector.z;
 	return output;
 }
-Vector3D* Vector3D::sub(const Vector3D vector, Vector3D* output) const {
-	output->x = x - vector.x;
-	output->y = y - vector.y;
-	output->z = z - vector.z;
+Vector3D Vector3D::sub(const Vector3D vector) const {
+	Vector3D output;
+	output.x = x - vector.x;
+	output.y = y - vector.y;
+	output.z = z - vector.z;
 	return output;
 }
 
-Vector3D* Vector3D::multiply(double scalar, Vector3D* output) const {
-	output->x = x * scalar;
-	output->y = y * scalar;
-	output->z = z * scalar;
+Vector3D Vector3D::multiply(double scalar) const {
+	Vector3D output;
+	output.x = x * scalar;
+	output.y = y * scalar;
+	output.z = z * scalar;
 	return output;
 }
 

@@ -106,26 +106,19 @@ public:
 		//std::cout << "axisVector x:" << axisUnitVector.x << " y:" << axisUnitVector.y << " z:" << axisUnitVector.z << "\n";
 		Vector3D pointVector(p->x - xPos, p->y - yPos, p->z - zPos);
 		//std::cout << "PointVector x:" << (double) pointVector.x << " y:" << (double) pointVector.y << " z:" << (double) pointVector.z << "\n";
-		Vector3D vParralel;
-		axisUnitVector.multiply(pointVector.dotProduct(axisUnitVector), &vParralel);
+		Vector3D vParralel = axisUnitVector.multiply(pointVector.dotProduct(axisUnitVector));
 		//std::cout << "vParralel x:" << vParralel.x << " y:" << vParralel.y << " z:" << vParralel.z << "\n";
-		Vector3D vPerpendicular;
-		pointVector.sub(vParralel, &vPerpendicular);
+		Vector3D vPerpendicular = pointVector.sub(vParralel);
 		//std::cout << "vPerpendicular x:" << vPerpendicular.x << " y:" << vPerpendicular.y << " z:" << vPerpendicular.z << "\n";
-		Vector3D b;
-		Vector3D* crossedVector = axisUnitVector.crossProduct(pointVector, &b);
+		Vector3D crossedVector = axisUnitVector.crossProduct(pointVector);
 		//std::cout << "crossVector x:" << b.x << " y:" << b.y << " z:" << b.z << "\n";
-		Vector3D c;
-		Vector3D* comp1 = vPerpendicular.multiply(cosTheta, &c);
-		Vector3D d;
-		Vector3D* comp2 = crossedVector->multiply(sinTheta, &d);
-		Vector3D e;
-		Vector3D* newPointVector = comp1->add(*comp2, &e);
-		newPointVector->add(vParralel, &e);
+		Vector3D comp1 = vPerpendicular.multiply(cosTheta);
+		Vector3D comp2 = crossedVector.multiply(sinTheta);
+		Vector3D newPointVector = comp1.add(comp2).add(vParralel);
 		//std::cout << "newPointVector x:" << (double) e.x << " y:" << (double) e.y << " z:" << (double) e.z << "\n" << "\n";
-		output->x = newPointVector->x + xPos;
-		output->y = newPointVector->y + yPos;
-		output->z = newPointVector->z + zPos;
+		output->x = newPointVector.x + xPos;
+		output->y = newPointVector.y + yPos;
+		output->z = newPointVector.z + zPos;
 	}
 
 	static void rotatePointsAroundArbitraryAxis(std::vector<Point3D*>* points, const Vector3D axisUnitVector, double xPos, double yPos, double zPos, double theta, double cosTheta=-1, double sinTheta=-1) {

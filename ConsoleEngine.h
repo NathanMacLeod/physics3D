@@ -154,7 +154,7 @@ public:
 		if (useZBuffer) {
 			Vector3D v1(p1, p2);
 			Vector3D v2(p1, p3);
-			v1.crossProduct(v2, &normalVector);
+			normalVector = v1.crossProduct(v2);
 			invNz = 1.0 / normalVector.z;
 		}
 		const Point3D* upperPoint = &p1;
@@ -309,8 +309,8 @@ public:
 			Vector3D cameraToPolygon(polygon->p2->x - cameraPosition.x, polygon->p2->y - cameraPosition.y, polygon->p2->z - cameraPosition.z);
 			Vector3D p1p2(polygon->p2->x - polygon->p1->x, polygon->p2->y - polygon->p1->y, polygon->p2->z - polygon->p1->z);
 			Vector3D p1p3(polygon->p3->x - polygon->p1->x, polygon->p3->y - polygon->p1->y, polygon->p3->z - polygon->p1->z);
-			Vector3D normalVector;
-			p1p2.crossProduct(p1p3, &normalVector);
+			Vector3D normalVector = p1p2.crossProduct(p1p3);
+
 			if (cameraToPolygon.dotProduct(normalVector) < 0) {
 				polygon->copyPointsToTemp();
 				points.push_back(polygon->tempP1);

@@ -72,7 +72,7 @@ void RigidBody::acclerateLineraly(const Vector3D changeInVelocity) {
 	//std::cout << velocity.x << " " << velocity.y << " " << velocity.z << "\n";
 	if (fixed)
 		return;
-	velocity.add(changeInVelocity, &velocity);
+	velocity = velocity.add(changeInVelocity);
 }
 
 void RigidBody::translate(const Vector3D translation) {
@@ -82,11 +82,9 @@ void RigidBody::translate(const Vector3D translation) {
 void RigidBody::moveInTime(double time) {
 	if (fixed)
 		return;
-	Vector3D translation;
-	Vector3D rotationAxis;
 	double rotationMagnitude = angularVelocity.getMagnitude() * time;
-	angularVelocity.getUnitVector(&rotationAxis);
-	velocity.multiply(time, &translation);
+	Vector3D translation = velocity.multiply(time);
+	Vector3D rotationAxis = angularVelocity.getUnitVector();
 	transformation3D::translatePoints(&pointsToTransform, translation);
 	if(rotationMagnitude != 0)
 		transformation3D::rotatePointsAroundArbitraryAxis(&pointsToTransform, rotationAxis, centerOfMass.x, centerOfMass.y, centerOfMass.z, rotationMagnitude);
@@ -323,28 +321,27 @@ void RigidBody::findBodyMassAndInertia(double density) {
 	
 }
 
-Vector3D* RigidBody::findVectorRelativeToBodyFrame(const Vector3D vector, Vector3D* output) {
+Vector3D RigidBody::findVectorRelativeToBodyFrame(const Vector3D vector) {
+	Vector3D output;
+
 	Vector3D orientationVector1(centerOfMass, orientationPoint1);
 	Vector3D orientationVector2(centerOfMass, orientationPoint2);
-	Vector3D orientationVector3;
-	orientationVector1.crossProduct(orientationVector2, &orientationVector3);
+	Vector3D orientationVector3 = orientationVector1.crossProduct(orientationVector2);
 
 	double negYVal = orientationVector1.dotProduct(vector);
 	double xVal = orientationVector2.dotProduct(vector);
 	double zVal = orientationVector3.dotProduct(vector);
 
-	output->x = xVal;
-	output->y = -negYVal;
-	output->z = zVal;
+	output.x = xVal;
+	output.y = -negYVal;
+	output.z = zVal;
 	return output;
 }
 
 double RigidBody::findInverseInertiaOfAxis(const Vector3D inputAxis) {
 	if (fixed)
 		return 0;
-	Vector3D axis;
-	findVectorRelativeToBodyFrame(inputAxis, &axis);
-	axis.getUnitVector(&axis);
+	Vector3D axis = findVectorRelativeToBodyFrame(inputAxis).getUnitVector();
 	double vec1 = inertiaTensor[0] * axis.x + inertiaTensor[1] * axis.y + inertiaTensor[2] * axis.z;
 	double vec2 = inertiaTensor[3] * axis.x + inertiaTensor[4] * axis.y + inertiaTensor[5] * axis.z;
 	double vec3 = inertiaTensor[6] * axis.x + inertiaTensor[7] * axis.y + inertiaTensor[8] * axis.z;
@@ -360,10 +357,9 @@ void RigidBody::applyImpulseAtPosition(const Vector3D impulse, const Point3D pos
 	velocity.z += impulse.z * inverseMass;
 
 	Vector3D comToPoint(centerOfMass, position);
-	Vector3D deltaW;
-	comToPoint.crossProduct(impulse, &deltaW);
-	deltaW.multiply(findInverseInertiaOfAxis(deltaW), &deltaW);
-	angularVelocity.add(deltaW, &angularVelocity);
+	Vector3D deltaW = comToPoint.crossProduct(impulse);
+	deltaW = deltaW.multiply(findInverseInertiaOfAxis(deltaW));
+	angularVelocity = angularVelocity.add(deltaW);
 }
 
 void RigidBody::createReferenceCopies() {
@@ -394,7 +390,7 @@ void RigidBody::findCollisionRadius() {
 	
 }
 
-void RigidBody::recalibrateFromReference() {
+/*void RigidBody::recalibrateFromReference() {
 	//reference point 1 sits 1 unit above center of mass
 	//reference point 2 sits 1 positive x direction to center of mass
 	Vector3D reference1Vector(0, -1, 0);
@@ -403,10 +399,8 @@ void RigidBody::recalibrateFromReference() {
 	Vector3D reference1Pos(centerOfMass, orientationPoint1);
 
 	//find vector and angle to define transformation from default orientation such that the negative y axis aligns with reference point 1 on the current orientation
-	Vector3D a;
 	double reference1Angle = acos(reference1Vector.dotProduct(reference1Pos));
-	Vector3D* p1RotationVector = reference1Vector.crossProduct(reference1Pos, &a);
-	p1RotationVector = p1RotationVector->getUnitVector(&a);
+	Vector3D p1RotationVector = reference1Vector.crossProduct(reference1Pos).getUnitVector();
 
 	//transform p1 so that reference point 2 sits on the xz plane
 	Point3D orientationPoint2Relative;
@@ -441,7 +435,7 @@ void RigidBody::recalibrateFromReference() {
 	transformation3D::rotatePointsAroundArbitraryAxis(&pointsToTransform, *p1RotationVector, 0, 0, 0, reference1Angle, 0, 0);
 	Vector3D translation(centerOfMass.x, centerOfMass.y, centerOfMass.z);
 	transformation3D::translatePoints(&pointsToTransform, translation);
-}
+}*/
 
 double RigidBody::getFriction() const {
 	return friction;
@@ -455,8 +449,8 @@ double RigidBody::getCollisionRadius() const {
 	return collisionRadius;
 }
 
-Vector3D* RigidBody::getAngularVelocity() {
-	return &angularVelocity;
+Vector3D RigidBody::getAngularVelocity() {
+	return angularVelocity;
 }
 
 double RigidBody::getMass() const {
@@ -514,20 +508,17 @@ std::vector<RigidSurface*>* RigidBody::getSurfaces() {
 	return &surfaces;
 }
 
-Vector3D* RigidBody::getVelocityOfPointDueToAngularVelocity(const Point3D point, Vector3D* output) const {
+Vector3D RigidBody::getVelocityOfPointDueToAngularVelocity(const Point3D point) const {
 	Vector3D centerOfMassToPoint(centerOfMass, point);
-	angularVelocity.crossProduct(centerOfMassToPoint, output);
-	return output;
+	return angularVelocity.crossProduct(centerOfMassToPoint);
 }
 
-Vector3D* RigidBody::getVelocityOfPoint(const Point3D point, Vector3D* output) const {
-	getVelocityOfPointDueToAngularVelocity(point, output);
-	velocity.add(*output, output);
-	return output;
+Vector3D RigidBody::getVelocityOfPoint(const Point3D point) const {
+	return getVelocityOfPointDueToAngularVelocity(point).add(velocity);
 }
 
-Vector3D* RigidBody::getVelocity() {
-	return &velocity;
+Vector3D RigidBody::getVelocity() {
+	return velocity;
 }
 
 double RigidBody::getRadialDistanceOfPoint(const Point3D point) {
@@ -538,12 +529,9 @@ double RigidBody::getRadialDistanceOfPoint(const Point3D point) {
 }
 
 bool RigidBody::verifyCollisionPointNotExiting(const RigidBody body, const Vector3D normalVector, const Point3D p) {
-	Vector3D vPThisBody;
-	Vector3D vPOtherBody;
-	getVelocityOfPoint(p, &vPThisBody);
-	body.getVelocityOfPoint(p, &vPOtherBody);
-	Vector3D vPRelative;
-	vPThisBody.sub(vPOtherBody, &vPRelative);
+	Vector3D vPThisBody = getVelocityOfPoint(p);
+	Vector3D vPOtherBody = body.getVelocityOfPoint(p);
+	Vector3D vPRelative = vPThisBody.sub(vPOtherBody);
 	return vPRelative.dotProduct(normalVector) < 0;
 }
 
@@ -591,14 +579,13 @@ void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* c
 			Vector3D pToCOM(*p, centerOfMass);
 			Vector3D pToP1(*p, *surfaceP1);
 			double t = normalVector.dotProduct(pToP1) / normalVector.dotProduct(pToCOM);
-			pToCOM.multiply(t, &pToCOM); //point p + pToCOM now gives intersection with plane
+			pToCOM = pToCOM.multiply(t); //point p + pToCOM now gives intersection with plane
 			Point3D planeIntersection(p->x + pToCOM.x, p->y + pToCOM.y, p->z + pToCOM.z);
 			//check that the intersection point lies in the actual surface defined
 			Vector3D planeAxisI(*surfaceP1, planeIntersection);
 			double p1ToIntersectDistSquared = planeAxisI.getMagnitudeSquared();
-			planeAxisI.getUnitVector(&planeAxisI);
-			Vector3D planeAxisJ;
-			planeAxisI.crossProduct(normalVector, &planeAxisJ);
+			planeAxisI = planeAxisI.getUnitVector();
+			Vector3D planeAxisJ = planeAxisI.crossProduct(normalVector);
 			//axis I and J define unit vectors on the plane defined by surface. if intersection point is within
 			//the surface, it now sits on the i axis, and if its within there should be one edge on the polygon that intersects
 			// the i axis, that should be behind the intersection point in its i value
@@ -669,13 +656,10 @@ void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* c
 				continue;
 
 			Vector3D p1p2(*p1, *p2);
-			Vector3D p1p2Unit;
-			p1p2.multiply(edge->inverseMagnitude, &p1p2Unit);
+			Vector3D p1p2Unit = p1p2.multiply(edge->inverseMagnitude);
 			Vector3D p1Com(*p1, *(body.getCenterOfMass()));
-			Vector3D parralelComp;
-			p1p2Unit.multiply(p1Com.dotProduct(p1p2Unit), &parralelComp);
-			Vector3D distComp;
-			p1Com.sub(parralelComp, &distComp);
+			Vector3D parralelComp = p1p2Unit.multiply(p1Com.dotProduct(p1p2Unit));
+			Vector3D distComp = p1Com.sub(parralelComp);
 			if (distComp.getMagnitudeSquared() > body.getCollisionRadiusSquared())
 				continue;
 			double leastDepthPenetration = -1;
@@ -688,12 +672,10 @@ void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* c
 				if (p1Sp1.dotProduct(normalVector) * p2Sp1.dotProduct(normalVector) > 0)
 					continue;
 
-				Vector3D axisJ;
-				Vector3D perpComp;
-				p1p2Unit.multiply(p1p2Unit.dotProduct(p1Sp1), &perpComp);
-				p1Sp1.sub(perpComp, &axisJ);
+				Vector3D perpComp = p1p2Unit.multiply(p1p2Unit.dotProduct(p1Sp1));
+				Vector3D axisJ = p1Sp1.sub(perpComp);
 				Vector3D axisI;
-				axisJ.crossProduct(p1p2Unit, &axisI);
+				axisI = axisJ.crossProduct(p1p2Unit);
 				int pointsAbove = 1;
 				int pointsBelow = 0;
 				for (int i = 1; i < potColSurface->getPoints()->size() - 1; i++) {
@@ -721,13 +703,11 @@ void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* c
 					Point3D* lp1 = potColSurface->getPoints()->at(i);
 					Point3D* lp2 = (i == potColSurface->getPoints()->size() - 1) ? potColSurface->getPoints()->at(0) : potColSurface->getPoints()->at(i + 1);
 					Vector3D lp1lp2(*lp1, *lp2);
-					Vector3D perpDirection;
-					lp1lp2.crossProduct(p1p2, &perpDirection);
-					perpDirection.getUnitVector(&perpDirection);
+					Vector3D perpDirection = lp1lp2.crossProduct(p1p2).getUnitVector();
 					Vector3D p1Lp1(*p1, *lp1);
 					double penDepth = p1Lp1.dotProduct(perpDirection);
 					if (penDepth < 0) {
-						perpDirection.multiply(-1, &perpDirection);
+						perpDirection = perpDirection.multiply(-1);
 						penDepth *= -1;
 					}
 					//choice of 5 arbitrary, tries to avoid improper collisions
@@ -736,18 +716,15 @@ void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* c
 					double lp1I = p1Lp1.dotProduct(p1p2Unit);
 					Vector3D p1Lp2(*p1, *lp2);
 					double lp2I = p1Lp2.dotProduct(p1p2Unit);
-					Vector3D vertAxis;
-					perpDirection.crossProduct(p1p2Unit, &vertAxis);
+					Vector3D vertAxis = perpDirection.crossProduct(p1p2Unit);
 					double lp1J = vertAxis.dotProduct(p1Lp1);
 					double lp2J = vertAxis.dotProduct(p1Lp2);
 					double iInt = lp1I - lp1J * (lp2I - lp1I) / (lp2J - lp1J);
 					if (iInt < 0 || iInt > p1p2.getMagnitude())
 						continue;
-					Vector3D p1ToCol;
-					p1p2Unit.multiply(iInt, &p1ToCol);
-					Vector3D perpComp;
-					perpDirection.multiply(penDepth, &perpComp);
-					p1ToCol.add(perpComp, &p1ToCol);
+					Vector3D p1ToCol = p1p2Unit.multiply(iInt);
+					Vector3D perpComp = perpDirection.multiply(penDepth);
+					p1ToCol = p1ToCol.add(perpComp);
 
 					Point3D colPoint(p1->x + p1ToCol.x, p1->y + p1ToCol.y, p1->z + p1ToCol.z);
 					if (!verifyCollisionPointNotExiting(body, perpDirection, colPoint)) {
