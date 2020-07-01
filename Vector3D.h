@@ -12,6 +12,7 @@ public:
 	Vector3D(double x, double y, double z);
 	Vector3D(Point3D p1, Point3D p2);
 	Vector3D();
+	Vector3D getInverse();
 	Vector3D getUnitVector() const;
 	double getMagnitude() const;
 	double getMagnitudeSquared() const;

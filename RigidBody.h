@@ -58,6 +58,8 @@ public:
 	RigidBody(const std::vector<RigidSurface*>& surfaces, double density, double friction, double resistution, bool fixed); //not done
 	void recalibrateFromReference();
 	bool bodiesInCollisionRange(RigidBody& body);
+	Vector3D findSupportPoint(const Vector3D direction);
+	double GJK(RigidBody& otherBody);
 	double getCollisionRadius() const;
 	double getCollisionRadiusSquared() const;
 	Vector3D getAngularVelocity();

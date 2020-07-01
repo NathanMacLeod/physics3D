@@ -535,6 +535,133 @@ bool RigidBody::verifyCollisionPointNotExiting(const RigidBody body, const Vecto
 	return vPRelative.dotProduct(normalVector) < 0;
 }
 
+Vector3D RigidBody::findSupportPoint(const Vector3D direction) {
+	Vector3D suppPoint;
+	double greatestDist;
+	bool first = true;
+	Point3D origin(0, 0, 0);
+	for (Point3D* p : colPoints) {
+		Vector3D point(origin, *p);
+		double dist = direction.dotProduct(point);
+		if (first || dist > greatestDist) {
+			suppPoint = point;
+			greatestDist = dist;
+			first = false;
+		}
+	}
+	return suppPoint;
+}
+
+//most recent points are at tail of vector
+Vector3D solve2Simplex(Vector3D a, Vector3D b) {
+	Vector3D ab = b.sub(a);
+	if (a.dotProduct(ab) < 0) {
+		Vector3D perp = a.getInverse().crossProduct(ab);
+		return ab.crossProduct(perp);
+	}
+	return a.getInverse();
+}
+
+Vector3D solve3Simplex(Vector3D a, Vector3D b, Vector3D c) {
+	Vector3D ab = b.sub(a);
+	Vector3D ac = c.sub(a);
+	Vector3D vert = ab.crossProduct(ac);
+
+	Vector3D abNorm = ab.crossProduct(vert);
+	if (a.dotProduct(abNorm) < 0) {
+		return solve2Simplex(a, b);
+	}
+	Vector3D acNorm = vert.crossProduct(ac);
+	if (a.dotProduct(acNorm) < 0) {
+		return solve2Simplex(a, c);
+	}
+	else if (a.dotProduct(vert) < 0) {
+		return vert;
+	}
+	return vert.getInverse();
+}
+
+bool iterateSimplex(std::vector<Vector3D>& currSimplex, Vector3D *nextDir, int* removeIndex) {
+	switch (currSimplex.size()) {
+	case 2:
+		*nextDir = solve2Simplex(currSimplex.at(1), currSimplex.at(0));
+		break;
+	case 3:
+		*nextDir = solve3Simplex(currSimplex.at(2), currSimplex.at(1), currSimplex.at(0));
+		break;
+	case 4:
+		Vector3D a = currSimplex.at(3);
+		Vector3D b = currSimplex.at(2);
+		Vector3D c = currSimplex.at(1);
+		Vector3D d = currSimplex.at(0);
+
+		Vector3D ab = b.sub(a);
+		Vector3D ac = c.sub(a);
+		Vector3D ad = d.sub(a);
+
+		Vector3D abcNorm = ab.crossProduct(ac);
+		if (ad.dotProduct(abcNorm) > 0)
+			abcNorm = abcNorm.getInverse();
+
+		Vector3D acdNorm = ac.crossProduct(ad);
+		if (ab.dotProduct(acdNorm) > 0)
+			acdNorm = acdNorm.getInverse();
+
+		Vector3D adbNorm = ad.crossProduct(ab);
+		if (ac.dotProduct(adbNorm) > 0)
+			adbNorm = adbNorm.getInverse();
+
+		if (a.dotProduct(abcNorm) < 0) {
+			*nextDir = solve3Simplex(a, b, c);
+			*removeIndex = 0;
+		}
+		else if (a.dotProduct(acdNorm) < 0) {
+			*nextDir = solve3Simplex(a, c, d);
+			*removeIndex = 2;
+		}
+		else if (a.dotProduct(adbNorm) < 0) {
+			*nextDir = solve3Simplex(a, d, b);
+			*removeIndex = 1;
+		}
+		else {
+			return true;
+		}
+		break;
+	default:
+		printf("Unexpected amount of points in the simplex of: %d", currSimplex.size());
+	}
+}
+
+//return signed dist, if negative it is penetration dist, if positive dist apart. 
+double RigidBody::GJK(RigidBody& otherBody) {
+	Vector3D dir(0, 0, 1);
+	std::vector<Vector3D> simplex;
+	Vector3D initPoint = findSupportPoint(dir).sub(otherBody.findSupportPoint(dir.getInverse()));
+	simplex.push_back(initPoint);
+	dir = dir.getInverse();
+
+	bool pointFoundOutside = false;
+	bool pointFoundInside = false;
+	int removeIndex = -1;
+	do {
+		Vector3D nextPoint = findSupportPoint(dir).sub(otherBody.findSupportPoint(dir.getInverse()));
+		if (simplex.size() > 4) {
+			simplex.erase(simplex.begin() + removeIndex);
+		}
+
+		for (Vector3D existingPoint : simplex) {
+			if (existingPoint.sub(nextPoint).getMagnitudeSquared() < 0.001) {
+				pointFoundOutside = true;
+				break;
+			}
+		}
+		if (!pointFoundOutside) {
+			simplex.push_back(nextPoint);
+			bool pointFoundInside = iterateSimplex(simplex, &dir, &removeIndex);
+		}
+	} while (!pointFoundOutside && !pointFoundInside);
+}
+
 RigidBody::ColPointInfo::ColPointInfo(double x, double y, double z, Vector3D* colNormVector, double penDepth) {
 	this->point.x = x;
 	this->point.y = y;
