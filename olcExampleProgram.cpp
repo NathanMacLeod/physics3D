@@ -413,9 +413,10 @@ public:
 		zBuffer = new double[ScreenWidth() * ScreenHeight()];
 		allPolygons = new std::vector<Polygon3D*>();
 		cameraPos.z = -10;
+		//cameraPos.x = 52;
 
 		std::vector<Polygon3D*>* b2polygons = createBox(100, 5, 100, 0, 30, 100);
-		RigidBody* b2 = new RigidBody(*createRigidBodyFromPolygons(*b2polygons), 1, 0.3, 0.3, true);
+		RigidBody* b2 = new RigidBody(*createRigidBodyFromPolygons(*b2polygons), 1, 0.5, 0.3, true);
 		pEngine.addRigidBody(b2);
 
 		for (Polygon3D* polygon : *b2polygons) {
@@ -432,7 +433,7 @@ public:
 		dropTime += fElapsedTime;
 		if (dropTime > 5) {
 			dropTime = 0;
-			double x = 0;// 55;
+			double x = 0;// 52;
 			double y = -20;
 			double z = 100;
 			std::vector<Polygon3D*>* b1polygons = createBox(10, 10, 10, x, y, z);
@@ -463,7 +464,7 @@ public:
 			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, x, y, z, 3.14159 / 3.0);
 			Vector3D axis2(0, 0, 1);
 			axis2 = axis2.getUnitVector();
-			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis2, x, y, z, -3.14159 / 3.0);
+			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis2, x, y, z, -3.14159 / 3);
 			RigidBody* b1 = new RigidBody(*createRigidBodyFromPolygons(*b1polygons), 1, 0.5, 0.3, false);
 			pEngine.addRigidBody(b1);
 			delete b1polygons;

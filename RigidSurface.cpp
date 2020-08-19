@@ -32,6 +32,10 @@ double RigidSurface::getInverseSegmentMagnitude(int i) {
 		return -1;
 }
 
+Vector3D RigidSurface::getUnitNorm() {
+	return Vector3D(*points.at(0), *normalVectorPoint);
+}
+
 std::vector<Point3D*>* RigidSurface::getPoints() {
 	return &points;
 }

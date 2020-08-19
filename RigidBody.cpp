@@ -33,7 +33,7 @@ RigidBody::RigidBody(const std::vector<RigidSurface*>& surfaces, double density,
 RigidBody::Edge::Edge(Point3D* p1, Point3D* p2) {
 	this->p1 = p1;
 	this->p2 = p2;
-	inverseMagnitude = 1 / Vector3D(*p1, *p2).getMagnitude();
+	inverseMagnitude = 1.0 / Vector3D(*p1, *p2).getMagnitude();
 }
 
 void RigidBody::findColPointsEdges() {
@@ -118,6 +118,7 @@ double iExp(double base, int x) {
 	return prod;
 }
 
+//Fast and Accurate Computation of Polyhedral Mass Properties (Brian Miritch)
 void RigidBody::findBodyMassAndInertia(double density) {
 	double v = 0, vX = 0, vY = 0, vZ = 0, vXSqrd = 0, vYSqrd = 0, vZSqrd = 0;
 	double vXY = 0, vXZ = 0, vYZ = 0;
@@ -553,47 +554,73 @@ Vector3D RigidBody::findSupportPoint(const Vector3D direction) {
 }
 
 //most recent points are at tail of vector
-Vector3D solve2Simplex(Vector3D a, Vector3D b) {
+Vector3D RigidBody::solve2Simplex(Vector3D a, Vector3D b, std::vector<Vector3D>* closestFeature) {
 	Vector3D ab = b.sub(a);
 	if (a.dotProduct(ab) < 0) {
 		Vector3D perp = a.getInverse().crossProduct(ab);
+		closestFeature->push_back(a);
+		closestFeature->push_back(b);
 		return ab.crossProduct(perp);
 	}
+	closestFeature->push_back(a);
 	return a.getInverse();
 }
 
-Vector3D solve3Simplex(Vector3D a, Vector3D b, Vector3D c) {
+Vector3D RigidBody::solve3Simplex(Vector3D a, Vector3D b, Vector3D c, std::vector<Vector3D>* closestFeature) {
 	Vector3D ab = b.sub(a);
 	Vector3D ac = c.sub(a);
 	Vector3D vert = ab.crossProduct(ac);
 
 	Vector3D abNorm = ab.crossProduct(vert);
+
 	if (a.dotProduct(abNorm) < 0) {
-		return solve2Simplex(a, b);
+		return solve2Simplex(a, b, closestFeature);
 	}
 	Vector3D acNorm = vert.crossProduct(ac);
+
+	Vector3D vertDir;
 	if (a.dotProduct(acNorm) < 0) {
-		return solve2Simplex(a, c);
+		return solve2Simplex(a, c, closestFeature);
 	}
 	else if (a.dotProduct(vert) < 0) {
-		return vert;
+		vertDir = vert;
 	}
+	else {
+		vertDir = vert.getInverse();
+	}
+	closestFeature->push_back(a);
+	closestFeature->push_back(b);
+	closestFeature->push_back(c);
 	return vert.getInverse();
 }
 
-bool iterateSimplex(std::vector<Vector3D>& currSimplex, Vector3D *nextDir, int* removeIndex) {
+bool RigidBody::iterateSimplex(std::vector<Vector3D>& currSimplex, Vector3D *nextDir, int* removeIndex, std::vector<Vector3D>* closestFeature) {
+	closestFeature->clear();
 	switch (currSimplex.size()) {
 	case 2:
-		*nextDir = solve2Simplex(currSimplex.at(1), currSimplex.at(0));
+		*nextDir = solve2Simplex(currSimplex.at(1), currSimplex.at(0), closestFeature);
 		break;
 	case 3:
-		*nextDir = solve3Simplex(currSimplex.at(2), currSimplex.at(1), currSimplex.at(0));
+		*nextDir = solve3Simplex(currSimplex.at(2), currSimplex.at(1), currSimplex.at(0), closestFeature);
 		break;
 	case 4:
+	{
 		Vector3D a = currSimplex.at(3);
 		Vector3D b = currSimplex.at(2);
 		Vector3D c = currSimplex.at(1);
 		Vector3D d = currSimplex.at(0);
+
+
+		Vector3D bc = c.sub(b);
+		Vector3D bd = b.sub(d);
+		Vector3D cbdNorm = bc.crossProduct(bd);
+
+		bool inPlane = abs(cbdNorm.dotProduct(a) - cbdNorm.dotProduct(d)) < 0.01;
+		
+		if (inPlane) {
+			*nextDir = a.getInverse();
+			*removeIndex = 0;
+		}
 
 		Vector3D ab = b.sub(a);
 		Vector3D ac = c.sub(a);
@@ -612,40 +639,43 @@ bool iterateSimplex(std::vector<Vector3D>& currSimplex, Vector3D *nextDir, int* 
 			adbNorm = adbNorm.getInverse();
 
 		if (a.dotProduct(abcNorm) < 0) {
-			*nextDir = solve3Simplex(a, b, c);
+			*nextDir = solve3Simplex(a, b, c, closestFeature);
 			*removeIndex = 0;
 		}
 		else if (a.dotProduct(acdNorm) < 0) {
-			*nextDir = solve3Simplex(a, c, d);
+			*nextDir = solve3Simplex(a, c, d, closestFeature);
 			*removeIndex = 2;
 		}
 		else if (a.dotProduct(adbNorm) < 0) {
-			*nextDir = solve3Simplex(a, d, b);
+			*nextDir = solve3Simplex(a, d, b, closestFeature);
 			*removeIndex = 1;
 		}
 		else {
 			return true;
 		}
+	}
 		break;
 	default:
-		printf("Unexpected amount of points in the simplex of: %d", currSimplex.size());
+		printf("Unexpected amount of points in the simplex of: %d\n", currSimplex.size());
 	}
+	return false;
 }
 
 //return signed dist, if negative it is penetration dist, if positive dist apart. 
-double RigidBody::GJK(RigidBody& otherBody) {
+double RigidBody::GJK(RigidBody& otherBody, Vector3D* collNorm, Point3D* colPoint) {
 	Vector3D dir(0, 0, 1);
-	std::vector<Vector3D> simplex;
+ 	std::vector<Vector3D> simplex;
 	Vector3D initPoint = findSupportPoint(dir).sub(otherBody.findSupportPoint(dir.getInverse()));
 	simplex.push_back(initPoint);
 	dir = dir.getInverse();
 
+	std::vector<Vector3D> closestFeature;
 	bool pointFoundOutside = false;
 	bool pointFoundInside = false;
 	int removeIndex = -1;
 	do {
 		Vector3D nextPoint = findSupportPoint(dir).sub(otherBody.findSupportPoint(dir.getInverse()));
-		if (simplex.size() > 4) {
+		if (simplex.size() > 3) {
 			simplex.erase(simplex.begin() + removeIndex);
 		}
 
@@ -657,9 +687,392 @@ double RigidBody::GJK(RigidBody& otherBody) {
 		}
 		if (!pointFoundOutside) {
 			simplex.push_back(nextPoint);
-			bool pointFoundInside = iterateSimplex(simplex, &dir, &removeIndex);
+			pointFoundInside = iterateSimplex(simplex, &dir, &removeIndex, &closestFeature);
 		}
 	} while (!pointFoundOutside && !pointFoundInside);
+
+	if (pointFoundOutside) {
+		switch (closestFeature.size()) {
+		case 1:
+			return closestFeature.at(0).getMagnitude();
+			break;
+		case 2:
+		{
+			Vector3D ab = closestFeature.at(0).sub(closestFeature.at(1)).getUnitVector();
+			Vector3D a = closestFeature.at(0);
+			return a.sub(ab.multiply(a.dotProduct(ab))).getMagnitude();
+		}
+			break;
+		
+		case 3:
+		{
+			Vector3D ab = closestFeature.at(0).sub(closestFeature.at(1));
+			Vector3D ac = closestFeature.at(0).sub(closestFeature.at(2));
+			Vector3D a = closestFeature.at(0);
+			Vector3D norm = ab.crossProduct(ac).getUnitVector();
+			return a.dotProduct(norm);
+		}
+			break;
+		default:
+			printf("Unexpected number of points in simplex when resolving point outside dist of %d\n", closestFeature.size());
+		}
+	}
+	else {
+		return findInteriorDist(simplex, otherBody, collNorm, colPoint);
+	}
+}
+
+RigidBody::SimplexFace::SimplexFace(Vector3D a, Vector3D b, Vector3D c) {
+	points[0] = a;
+	points[1] = b;
+	points[2] = c;
+	Vector3D ab = a.sub(b);
+	Vector3D bc = a.sub(c);
+	norm = ab.crossProduct(bc).getUnitVector();
+	if (norm.dotProduct(a) < 0) {
+		norm = norm.getInverse();
+	}
+	dist = a.dotProduct(norm);
+}
+
+double RigidBody::findInteriorDist(std::vector<Vector3D>& simplex, RigidBody& otherBody, Vector3D* collNorm, Point3D* colPoint) {
+	std::vector<SimplexFace*> currPolyhedron;
+	std::vector<SimplexFace*> facesToReplace;
+	std::vector<SimplexFace*> facesToRetain;
+	if (simplex.size() != 4) {
+		printf("Unexpected simplex size of %d when finding interior dist\n", simplex.size());
+	}
+	Vector3D a = simplex.at(0);
+	Vector3D b = simplex.at(1);
+	Vector3D c = simplex.at(2);
+	Vector3D d = simplex.at(3);
+
+	currPolyhedron.push_back(new SimplexFace(a, b, c));
+	currPolyhedron.push_back(new SimplexFace(a, b, d));
+	currPolyhedron.push_back(new SimplexFace(a, d, c));
+	currPolyhedron.push_back(new SimplexFace(b, b, c));
+
+	SimplexFace* closestFace = nullptr;
+	bool distFound = false;
+	do {
+		double closestDist = -1;
+		for (SimplexFace* face : currPolyhedron) {
+			if (face->dist < closestDist || closestDist == -1) {
+				closestFace = face;
+				closestDist = face->dist;
+			}
+		}
+
+		Vector3D newPoint = findSupportPoint(closestFace->norm).sub(otherBody.findSupportPoint(closestFace->norm.getInverse()));
+		double eps = 0.001;
+		bool pointInPlane = abs(newPoint.dotProduct(closestFace->norm) - closestFace->dist) < eps;
+
+		if (pointInPlane) {
+			distFound = true;
+		}
+		else {
+			facesToReplace.clear();
+			facesToRetain.clear();
+			for (SimplexFace* face : currPolyhedron) {
+				if (face == closestFace || newPoint.sub(face->points[0]).dotProduct(face->norm) > 0) {
+					facesToReplace.push_back(face);
+				}
+				else {
+					facesToRetain.push_back(face);
+				}
+			}
+			currPolyhedron = facesToRetain;
+			//faces with norm in direction of new point must be replaced to maintain convexity
+			//these faces are removed, and rebuilt off of only non-shared edges and the new point
+			int nEdges = 3 * facesToReplace.size();
+			Vector3D** edges = new Vector3D*[nEdges];
+			bool* edgesToUse = new bool[nEdges];
+
+			for (int i = 0; i < nEdges; i++) {
+				SimplexFace* face = facesToReplace.at(i / 3);
+				int j = i % 3;
+				Vector3D p1 = face->points[j];
+				Vector3D p2 = face->points[(j == 2) ? 0 : j + 1];
+				edges[i] = new Vector3D[2];
+				edges[i][0] = p1;
+				edges[i][1] = p2;
+				edgesToUse[i] = true;
+			}
+			
+			for (int i = 0; i < nEdges; i++) {
+				if (edgesToUse[i]) {
+					Vector3D p1 = edges[i][0];
+					Vector3D p2 = edges[i][1];
+					//3 * (i/3 + 1) avoids redundant checking. every set of three edges are from the same face, so dont need to be compared 
+					for (int j = 3 * ((i / 3) + 1); j < nEdges; j++) {
+						Vector3D cp1 = edges[j][0];
+						Vector3D cp2 = edges[j][1];
+						//if edge is the same
+						if ((p1.sub(cp1).getMagnitudeSquared() < eps && p2.sub(cp2).getMagnitudeSquared() < eps)
+							|| (p1.sub(cp2).getMagnitudeSquared() < eps && p2.sub(cp1).getMagnitudeSquared() < eps)) {
+							edgesToUse[i] = false;
+							edgesToUse[j] = false;
+						}
+					}
+					if (edgesToUse[i]) {
+						currPolyhedron.push_back(new SimplexFace(p1, p2, newPoint));
+					}
+				}
+			}
+
+			for (SimplexFace* face : facesToReplace) {
+				delete face;
+			}
+		}
+
+	} while (!distFound);
+
+	*collNorm = closestFace->norm;
+	double dist = -closestFace->dist;
+	for (SimplexFace* face : currPolyhedron) {
+		delete face;
+	}	
+	
+	std::vector<Point3D> bodyAFeature = getClosestFeature(closestFace->norm);
+	std::vector<Point3D> bodyBFeature = otherBody.getClosestFeature(closestFace->norm.getInverse());
+
+	if (bodyAFeature.size() == 1) {
+		*colPoint = bodyAFeature.at(0);
+	}
+	else if (bodyBFeature.size() == 1) {
+		*colPoint = bodyBFeature.at(0);
+	}
+	else {
+		Point3D p0 = bodyAFeature.at(0);
+		Vector3D v = Vector3D(p0, bodyAFeature.at(1)).getUnitVector();
+		Vector3D vNorm = v.crossProduct(closestFace->norm).getUnitVector();
+		Vector3D p1 = Vector3D(p0,  bodyBFeature.at(0));
+		Vector3D p2 = Vector3D(p0, bodyBFeature.at(1));
+		double p1i =  p1.dotProduct(v);
+		double p1j = p1.dotProduct(vNorm);
+		double p2i = p2.dotProduct(v);
+		double p2j = p2.dotProduct(vNorm);
+		double i = p1i + (p2i - p1i) * -p1j / (p2j - p1j);
+		Vector3D vScaled = v.multiply(i);
+		*colPoint = Point3D(p0.x + vScaled.x, p0.y + vScaled.y, p0.z + vScaled.z);
+	}
+
+	return dist;
+}
+
+bool RigidBody::SATColliderDetect(RigidBody* potCollider, Point3D* collisionPoint, Vector3D* nVect, double* colDepth, bool* separatingAxis) {
+	//std::vector<Vector3D> testedDirs;
+
+	Point3D colPoint;
+	Vector3D colVector;
+	double lowestColDepth = -1;
+	Point3D zero(0, 0, 0);
+	
+	for (RigidSurface* s : surfaces) {
+		Vector3D n = s->getUnitNorm();
+
+		//bool alreadyTested = false;
+		//for (Vector3D dir : testedDirs) {
+		//	if (abs(n.dotProduct(dir)) < 0.001) {
+		//		alreadyTested = true;
+		//	}
+		//}
+		//if (alreadyTested) {
+		//	continue;
+		//}
+
+		double colliderMax, colliderMin, collideeMax, collideeMin;
+		Point3D potColPoint;
+		bool colliderFirst = true;
+		bool collideeFirst = true;
+
+		for (Point3D* p : colPoints) {
+			double nDotVal = Vector3D(zero, *p).dotProduct(n);
+			if (collideeFirst) {
+				collideeMin = nDotVal;
+				collideeMax = nDotVal;
+				collideeFirst = false;
+			}
+			else {
+				if (nDotVal < collideeMin) {
+					collideeMin = nDotVal;
+				}
+				else if (nDotVal > collideeMax) {
+					collideeMax = nDotVal;
+				}
+			}
+		}
+
+		for (Point3D* p : potCollider->colPoints) {
+			double nDotVal = Vector3D(zero, *p).dotProduct(n);
+			if (colliderFirst) {
+				colliderMin = nDotVal;
+				colliderMax = nDotVal;
+				colliderFirst = false;
+				potColPoint = *p;
+			}
+			else {
+				if (nDotVal < colliderMin) {
+					colliderMin = nDotVal;
+					potColPoint = *p;
+				}
+				else if (nDotVal > colliderMax) {
+					colliderMax = nDotVal;
+				}
+			}
+		}
+
+		if (!(colliderMin > collideeMax || colliderMax < collideeMin)) { //check for intersection
+			double colDepth = collideeMax - colliderMin;
+
+			if (getPointInsideBody(potColPoint) && (colDepth < lowestColDepth || lowestColDepth == -1)) {
+				lowestColDepth = colDepth;
+				colPoint = potColPoint;
+				colVector = n;
+			}
+		}
+		else {
+			//existense of separating axis => no colliding
+			*separatingAxis = true;
+			return false;
+		}
+	}
+
+	*collisionPoint = colPoint;
+	*nVect = colVector;
+	*colDepth = lowestColDepth;
+	*separatingAxis = false;
+	return lowestColDepth != -1;
+}
+
+bool RigidBody::SATEdgeCol(RigidBody* b, Point3D* collisionPoint, Vector3D* nVect, double* collisionDepth, bool* separatingAxis) {
+
+	Point3D colPoint;
+	Vector3D colVector;
+	double lowestColDepth = -1;
+	Point3D zero(0, 0, 0);
+
+	bool separtingAxisFound = false;
+
+	for (Edge* edge1 : colEdges) {
+
+		for (Edge* edge2 : b->colEdges) {
+
+			Vector3D n = Vector3D(*edge1->p1, *edge1->p2).crossProduct(Vector3D(*edge2->p1, *edge2->p2))
+				.getUnitVector();
+
+			double colliderMax, colliderMin, collideeMax, collideeMin;
+			Point3D potColPoint;
+			bool colliderFirst = true;
+			bool collideeFirst = true;
+
+			for (Point3D* p : colPoints) {
+				double nDotVal = Vector3D(zero, *p).dotProduct(n);
+				if (collideeFirst) {
+					collideeMin = nDotVal;
+					collideeMax = nDotVal;
+					collideeFirst = false;
+				}
+				else {
+					if (nDotVal < collideeMin) {
+						collideeMin = nDotVal;
+					}
+					else if (nDotVal > collideeMax) {
+						collideeMax = nDotVal;
+					}
+				}
+			}
+
+			for (Point3D* p : b->colPoints) {
+				double nDotVal = Vector3D(zero, *p).dotProduct(n);
+				if (colliderFirst) {
+					colliderMin = nDotVal;
+					colliderMax = nDotVal;
+					colliderFirst = false;
+				}
+				else {
+					if (nDotVal < colliderMin) {
+						colliderMin = nDotVal;
+					}
+					else if (nDotVal > colliderMax) {
+						colliderMax = nDotVal;
+					}
+				}
+			}
+
+			if (!(colliderMin > collideeMax || colliderMax < collideeMin)) { //check for intersection
+				double colDepth = collideeMax - colliderMin;
+
+				if (colDepth < lowestColDepth || lowestColDepth == -1) {
+					Vector3D e1Axis = Vector3D(*edge1->p1, *edge1->p2).multiply(edge1->inverseMagnitude);
+					Vector3D e1Norm = e1Axis.crossProduct(n);
+
+					Vector3D e2p1Rel = Vector3D(*edge1->p1, *edge2->p1);
+					Vector3D e2p2Rel = Vector3D(*edge1->p1, *edge2->p2);
+
+					double p1e1Val = e2p1Rel.dotProduct(e1Axis);
+					double p2e1Val = e2p2Rel.dotProduct(e1Axis);
+					double p1NormVal = e2p1Rel.dotProduct(e1Norm);
+					double p2NormVal = e2p2Rel.dotProduct(e1Norm);
+
+					if (p2NormVal - p1NormVal == 0) {
+						continue; //edges are parralel, collision can't occur
+					}
+
+					double p1ToP2e1Slope = (p2e1Val - p1e1Val) / (p2NormVal - p1NormVal);
+					double intersectE1AxisVal = p1e1Val + p1ToP2e1Slope * (-p1NormVal);
+					if (intersectE1AxisVal < 0 || intersectE1AxisVal > (1.0 / edge1->inverseMagnitude)) {
+						continue; //edges are offset and couldnt collide
+					}
+
+					Point3D* p1 = edge1->p1;
+					Vector3D e1ToColP = e1Axis.multiply(intersectE1AxisVal);
+					colPoint = Point3D(p1->x + e1ToColP.x, p1->y + e1ToColP.y, p1->z + e1ToColP.z);
+					if (Vector3D(centerOfMass, *p1).dotProduct(n) > 0) {
+						colVector = n;
+					}
+					else {
+						colVector = n.getInverse();
+					}
+					lowestColDepth = colDepth;
+				}
+			}
+			else {
+				*separatingAxis = true;
+				//existense of separating axis => no colliding
+				return false;
+			}
+		}
+	}
+
+	*collisionPoint = colPoint;
+	*nVect = colVector;
+	*collisionDepth = lowestColDepth;
+	*separatingAxis = false;
+	return lowestColDepth != -1;
+}
+
+std::vector<Point3D> RigidBody::getClosestFeature(Vector3D dir) {
+	Point3D origin(0, 0, 0);
+	std::vector<Point3D> feature;
+	double currDist = 0;
+	double eps = 0.01;
+	for (Point3D* p : colPoints) {
+		double dist = Vector3D(origin, *p).dotProduct(dir);
+		if (feature.size() == 0) {
+			currDist = dist;
+			feature.push_back(Point3D(p->x, p->y, p->z));
+		}
+		else if (abs(currDist - dist) < eps) {
+			feature.push_back(Point3D(p->x, p->y, p->z));
+		}
+		else if (dist > currDist) {
+			currDist = dist;
+			feature.clear();
+			feature.push_back(Point3D(p->x, p->y, p->z));
+		}
+	}
+	return feature;
 }
 
 RigidBody::ColPointInfo::ColPointInfo(double x, double y, double z, Vector3D* colNormVector, double penDepth) {

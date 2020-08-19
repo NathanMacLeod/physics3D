@@ -16,6 +16,7 @@ public:
 	RigidSurface(const std::vector<Point3D*>& points, const Vector3D normalVector);
 	RigidSurface(const RigidSurface& surface);
 	std::vector<Point3D*>* getPoints();
+	Vector3D getUnitNorm();
 	Point3D* getNormalVectorPoint();
 	double getInverseSegmentMagnitude(int pointIndex); //returns magntiude of line from point i to point i + 1 in points
 };

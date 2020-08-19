@@ -41,21 +41,13 @@ void PhysicsEngine::pushBodiesApart(RigidBody* collider, RigidBody* collidee, co
 	collidee->translate(cldeTransform);
 }
 
-void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Point3D* colPoint, double restitution, bool contactCollision) {
-	//Vector3D nV(*(colSurface->getPoints()->at(0)), *(colSurface->getNormalVectorPoint()));
-	//if (nV.y >= 0 && collidee->getInverseMass() == 0)
-	//	std::cout << colSurface->getPoints()->at(0)->y << "\n";
-	//push bodies apart
+void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Point3D colPoint, double restitution, bool contactCollision) {
 
-	//Vector3D p1ToP(*(colSurface->getPoints()->at(0)), *colPoint);
-	//double distToPlane = abs(nV.dotProduct(p1ToP));
-
-	Vector3D vCldrP0 = collider->getVelocityOfPoint(*colPoint);
-	Vector3D vCldeP0 = collidee->getVelocityOfPoint(*colPoint);
-	Vector3D velRel;
-	velRel = vCldeP0.sub(vCldrP0);
-	Vector3D rClde(*(collidee->getCenterOfMass()), *colPoint);
-	Vector3D rCldr(*(collider->getCenterOfMass()), *colPoint);
+	Vector3D vCldrP0 = collider->getVelocityOfPoint(colPoint);
+	Vector3D vCldeP0 = collidee->getVelocityOfPoint(colPoint);
+	Vector3D velRel = vCldeP0.sub(vCldrP0);
+	Vector3D rClde(*(collidee->getCenterOfMass()), colPoint);
+	Vector3D rCldr(*(collider->getCenterOfMass()), colPoint);
 	Vector3D jRotAxisCldr = rCldr.crossProduct(nV);
 	Vector3D jRotAxisClde = rClde.crossProduct(nV);
 	double invIClde = collidee->findInverseInertiaOfAxis(jRotAxisClde);
@@ -107,15 +99,16 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 	std::cout << "pRotVel: " << pRot.dotProduct(up) << "\n";
 	std::cout << "curr veloc: " << collider->getAngularVelocity()->dotProduct(up) << "\n";*/
 
-	collider->applyImpulseAtPosition(impulse, *colPoint);
+	if (impulse.notZero()) {
+		collider->applyImpulseAtPosition(impulse, colPoint);
 
-	//std::cout << "veloc after: " << collider->getAngularVelocity()->dotProduct(up) << "\n\n";
-	
-	impulse = impulse.multiply(-1);
-	collidee->applyImpulseAtPosition(impulse, *colPoint);
+		//std::cout << "veloc after: " << collider->getAngularVelocity()->dotProduct(up) << "\n\n";
 
+		impulse = impulse.multiply(-1);
+		collidee->applyImpulseAtPosition(impulse, colPoint);
+	}
 	if (frictionImpulse.notZero()) {
-		
+		printf("hello\n");
 		//std::cout << "curr veloc: " << collider->getAngularVelocity()->dotProduct(up) << "\n";
 		/*Vector3D pVel;
 		collider->getVelocityOfPoint(*colPoint, &pVel);
@@ -126,7 +119,7 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 		std::cout << "pRotVel: " << pRot.dotProduct(up) << "\n";*/
 
 		//double angVelBefore = collider->getAngularVelocity()->getMagnitudeSquared();
-		collider->applyImpulseAtPosition(frictionImpulse, *colPoint);
+		collider->applyImpulseAtPosition(frictionImpulse, colPoint);
 
 		
 		
@@ -144,7 +137,7 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 		//std::cout << "/t/t-------------------\n";
 
 		frictionImpulse = frictionImpulse.multiply(-1);
-		collidee->applyImpulseAtPosition(frictionImpulse, *colPoint);
+		collidee->applyImpulseAtPosition(frictionImpulse, colPoint);
 		double angVelAfter = collider->getAngularVelocity().getMagnitudeSquared();
 	}
 }
@@ -166,7 +159,71 @@ void PhysicsEngine::iterateEngineTimestep() {
 			if (!body1->bodiesInCollisionRange(*body2))
 				continue;
 
-			std::vector<RigidBody::ColPointInfo*> b1ColInfo;
+			Vector3D norm;
+			Point3D colPoint;
+			double colDepth;
+			bool separatingAxis;
+
+			Vector3D normB;
+			Point3D colPointB;
+			double colDepthB;
+			bool separatingAxisB;
+			
+			Vector3D normE;
+			Point3D colPointE;
+			double colDepthE;
+			bool separatingAxisE;
+
+			RigidBody* collider = body2;
+			RigidBody* collidee = body1;
+
+			bool aCol = body1->SATColliderDetect(body2, &colPoint, &norm, &colDepth, &separatingAxis);
+			bool bCol = body2->SATColliderDetect(body1, &colPointB, &normB, &colDepthB, &separatingAxisB);
+			bool eCol = body1->SATEdgeCol(body2, &colPointE, &normE, &colDepthE, &separatingAxisE);
+
+			if ((aCol || bCol || eCol) && !(separatingAxis || separatingAxisB)) {
+				if (!aCol || (eCol && colDepthE < colDepth)) {
+					norm = normE;
+					colPoint = colPointE;
+					colDepth = colDepthE;
+				}
+				if (!(aCol || eCol) || (bCol && colDepthB < colDepth)) {
+					norm = normB;
+					colPoint = colPointB;
+					colDepth = colDepthB;
+					collidee = body2;
+					collider = body1;
+				}
+
+				printf("%f, %f, %f, %f, %f\n", norm.x, norm.y, norm.z, colDepth, collidee->getInverseMass());
+
+				if (true || collidee->verifyCollisionPointNotExiting(*collidee, norm, colPoint)) {
+					resolveImpulses(collider, collidee, norm, colPoint, collidee->getRestitution(), false);
+				}
+				pushBodiesApart(collider, collidee, norm, colDepth);
+			}
+
+			/*int maxItr = 5;
+			int eps = 0.1;
+			double dist = -1;
+			double tDelta = timestep / 2.0;
+			int itr = 0;
+			
+			while (!((dist = body1->GJK(*body2, &norm, &colPoint)) < 0 && -dist < eps) && itr < maxItr) {
+				itr++;
+				double t = (dist < 0)? -tDelta : tDelta;
+				body1->moveInTime(t);
+				body2->moveInTime(t);
+				tDelta /= 2.0;
+			}
+
+			resolveImpulses(body1, body2, norm.getInverse(), colPoint,
+				(body1->getRestitution() + body2->getRestitution()) / 2.0, false);
+			pushBodiesApart(collider, collidee, colInfo->at(0)->colNormVector, colInfo->at(0)->penDepth);
+
+			*/
+
+			/*std::vector<RigidBody::ColPointInfo*> b1ColInfo;
 			std::vector<RigidBody::ColPointInfo*> b2ColInfo;
 
 			bool collisionsOccuring = true;
@@ -264,6 +321,7 @@ void PhysicsEngine::iterateEngineTimestep() {
 				b1ColInfo.clear();
 				b2ColInfo.clear();
 			}
+			*/
 
 			/*
 			//resolve up to n collisions between the bodies.

@@ -27,6 +27,14 @@ public:
 	};
 
 private:
+	struct SimplexFace {
+		Vector3D points[3];
+		Vector3D norm;
+		double dist;
+
+		SimplexFace(Vector3D a, Vector3D b, Vector3D c);
+	};
+
 	std::vector<RigidSurface*> surfacesReferenceCopy;
 	std::vector<RigidSurface*> surfaces;
 	std::vector<Point3D*> pointsToTransform;
@@ -52,6 +60,11 @@ private:
 	void createReferenceCopies();
 	bool getPointInsideBody(const Point3D point, const std::vector<Point3D*> vectorPositions, const std::vector<Vector3D*> normalVectors);
 	Vector3D findVectorRelativeToBodyFrame(const Vector3D vector);
+	Vector3D solve2Simplex(Vector3D a, Vector3D b, std::vector<Vector3D>* closestFeature);
+	Vector3D solve3Simplex(Vector3D a, Vector3D b, Vector3D c, std::vector<Vector3D>* closestFeature);
+	bool iterateSimplex(std::vector<Vector3D>& currSimplex, Vector3D* nextDir, int* removeIndex, std::vector<Vector3D>* closestFeature);
+	double findInteriorDist(std::vector<Vector3D>& simplex, RigidBody& otherBody, Vector3D* collNorm, Point3D* colPoint);
+	std::vector<Point3D> getClosestFeature(Vector3D dir);
 public:
 
 	double* inertiaTensor; //remove
@@ -59,7 +72,9 @@ public:
 	void recalibrateFromReference();
 	bool bodiesInCollisionRange(RigidBody& body);
 	Vector3D findSupportPoint(const Vector3D direction);
-	double GJK(RigidBody& otherBody);
+	double GJK(RigidBody& otherBody, Vector3D* collNorm, Point3D* colPoint);
+	bool SATColliderDetect(RigidBody* potCollider, Point3D* colPoint, Vector3D* nVect, double* colDepth, bool* separatingAxis);
+	bool SATEdgeCol(RigidBody* b, Point3D* collisionPoint, Vector3D* normal, double* colDepth, bool* separatingAxis);
 	double getCollisionRadius() const;
 	double getCollisionRadiusSquared() const;
 	Vector3D getAngularVelocity();
