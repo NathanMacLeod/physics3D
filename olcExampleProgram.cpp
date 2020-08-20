@@ -413,6 +413,7 @@ public:
 		zBuffer = new double[ScreenWidth() * ScreenHeight()];
 		allPolygons = new std::vector<Polygon3D*>();
 		cameraPos.z = -10;
+		//cameraPos.y = 27.5;
 		//cameraPos.x = 52;
 
 		std::vector<Polygon3D*>* b2polygons = createBox(100, 5, 100, 0, 30, 100);

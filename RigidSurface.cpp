@@ -3,8 +3,8 @@
 RigidSurface::RigidSurface(const std::vector<Point3D*>& points, const Vector3D normalVector) {
 	//normalVector should have unit length
 	this->points = points;
-	Point3D* p1 = points.at(0);
-	normalVectorPoint = new Point3D(p1->x + normalVector.x, p1->y + normalVector.y, p1->z + normalVector.z);
+	Vector3D cross = Vector3D(*points.at(0), *points.at(1)).crossProduct(Vector3D(*points.at(1), *points.at(2)));
+	nVInverseMag = ((cross.dotProduct(normalVector) < 0) ? -1 : 1) / cross.getMagnitude();
 	caclulateInverseSegmentMagnitudes();
 }
 
@@ -12,7 +12,7 @@ RigidSurface::RigidSurface(const RigidSurface& surface) {
 	for (Point3D* p : surface.points) {
 		points.push_back(new Point3D(p->x, p->y, p->z));
 	}
-	normalVectorPoint = new Point3D(surface.normalVectorPoint->x, surface.normalVectorPoint->y, surface.normalVectorPoint->z);
+	nVInverseMag = surface.nVInverseMag;
 	caclulateInverseSegmentMagnitudes();
 }
 
@@ -33,13 +33,10 @@ double RigidSurface::getInverseSegmentMagnitude(int i) {
 }
 
 Vector3D RigidSurface::getUnitNorm() {
-	return Vector3D(*points.at(0), *normalVectorPoint);
+	return Vector3D(*points.at(0), *points.at(1)).crossProduct(Vector3D(*points.at(1), *points.at(2)))
+		.multiply(nVInverseMag);
 }
 
 std::vector<Point3D*>* RigidSurface::getPoints() {
 	return &points;
-}
-
-Point3D* RigidSurface::getNormalVectorPoint() {
-	return normalVectorPoint;
 }

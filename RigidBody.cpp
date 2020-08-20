@@ -13,9 +13,6 @@ RigidBody::RigidBody(const std::vector<RigidSurface*>& surfaces, double density,
 	findCollisionRadius();
 	findColPointsEdges();
 
-	for (RigidSurface* surface : surfaces) {
-		pointsToTransform.push_back(surface->getNormalVectorPoint());
-	}
 	for (Point3D* p : colPoints) {
 		pointsToTransform.push_back(p);
 	}
@@ -142,7 +139,7 @@ void RigidBody::findBodyMassAndInertia(double density) {
 		double nC;
 		double invC;
 		
-		Vector3D normV(*s->getPoints()->at(0), *s->getNormalVectorPoint());
+		Vector3D normV = s->getUnitNorm();
 
 		if (abs(normV.x) > abs(normV.y) && abs(normV.x) > abs(normV.z)) {
 			C = X;
@@ -371,7 +368,6 @@ void RigidBody::createReferenceCopies() {
 		for (Point3D* p : *(referenceCopy->getPoints())) {
 			referencePoints.push_back(p);
 		}
-		referencePoints.push_back(referenceCopy->getNormalVectorPoint());
 	}
 	Vector3D translation(-centerOfMass.x, -centerOfMass.y, -centerOfMass.z);
 	transformation3D::translatePoints(&referencePoints, translation);
@@ -485,7 +481,7 @@ bool RigidBody::getPointInsideBody(const Point3D point, const std::vector<Point3
 
 bool RigidBody::getPointInsideBody(const Point3D point) {
 	for (RigidSurface* surface : surfaces) {
-		Vector3D normalVector(*(surface->getPoints()->at(0)), *(surface->getNormalVectorPoint()));
+		Vector3D normalVector = surface->getUnitNorm();
 		Vector3D posToPoint(*(surface->getPoints()->at(0)), point);
 		if (normalVector.dotProduct(posToPoint) > 0)
 			return false;
@@ -861,7 +857,7 @@ double RigidBody::findInteriorDist(std::vector<Vector3D>& simplex, RigidBody& ot
 }
 
 bool RigidBody::SATColliderDetect(RigidBody* potCollider, Point3D* collisionPoint, Vector3D* nVect, double* colDepth, bool* separatingAxis) {
-	//std::vector<Vector3D> testedDirs;
+	std::vector<Vector3D> testedDirs;
 
 	Point3D colPoint;
 	Vector3D colVector;
@@ -871,20 +867,24 @@ bool RigidBody::SATColliderDetect(RigidBody* potCollider, Point3D* collisionPoin
 	for (RigidSurface* s : surfaces) {
 		Vector3D n = s->getUnitNorm();
 
-		//bool alreadyTested = false;
-		//for (Vector3D dir : testedDirs) {
-		//	if (abs(n.dotProduct(dir)) < 0.001) {
-		//		alreadyTested = true;
-		//	}
-		//}
-		//if (alreadyTested) {
-		//	continue;
-		//}
+		bool alreadyTested = false;
+		for (Vector3D dir : testedDirs) {
+			if (abs(n.dotProduct(dir)) > 0.99) {
+				alreadyTested = true;
+			}
+		}
+		if (alreadyTested) {
+			continue;
+		}
+		testedDirs.push_back(n);
 
 		double colliderMax, colliderMin, collideeMax, collideeMin;
 		Point3D potColPoint;
 		bool colliderFirst = true;
 		bool collideeFirst = true;
+
+		Point3D minPoint;
+		Point3D maxPoint;
 
 		for (Point3D* p : colPoints) {
 			double nDotVal = Vector3D(zero, *p).dotProduct(n);
@@ -909,21 +909,30 @@ bool RigidBody::SATColliderDetect(RigidBody* potCollider, Point3D* collisionPoin
 				colliderMin = nDotVal;
 				colliderMax = nDotVal;
 				colliderFirst = false;
-				potColPoint = *p;
+				minPoint = *p;
+				maxPoint = *p;
 			}
 			else {
 				if (nDotVal < colliderMin) {
 					colliderMin = nDotVal;
-					potColPoint = *p;
+					minPoint = *p;
 				}
 				else if (nDotVal > colliderMax) {
 					colliderMax = nDotVal;
+					maxPoint = *p;
 				}
 			}
 		}
 
 		if (!(colliderMin > collideeMax || colliderMax < collideeMin)) { //check for intersection
 			double colDepth = collideeMax - colliderMin;
+			Point3D potColPoint = minPoint;
+			//printf("exit1: %f;   exit2: %f\n", collideeMax - colliderMin, colliderMax - collideeMin);
+			if (colliderMax - collideeMin < colDepth) {
+				colDepth = colliderMax - collideeMin;
+				n = n.getInverse();
+				potColPoint = maxPoint;
+			}
 
 			if (getPointInsideBody(potColPoint) && (colDepth < lowestColDepth || lowestColDepth == -1)) {
 				lowestColDepth = colDepth;
@@ -946,6 +955,7 @@ bool RigidBody::SATColliderDetect(RigidBody* potCollider, Point3D* collisionPoin
 }
 
 bool RigidBody::SATEdgeCol(RigidBody* b, Point3D* collisionPoint, Vector3D* nVect, double* collisionDepth, bool* separatingAxis) {
+	std::vector<Vector3D> testedDirs;
 
 	Point3D colPoint;
 	Vector3D colVector;
@@ -958,8 +968,22 @@ bool RigidBody::SATEdgeCol(RigidBody* b, Point3D* collisionPoint, Vector3D* nVec
 
 		for (Edge* edge2 : b->colEdges) {
 
-			Vector3D n = Vector3D(*edge1->p1, *edge1->p2).crossProduct(Vector3D(*edge2->p1, *edge2->p2))
-				.getUnitVector();
+			Vector3D n = Vector3D(*edge1->p1, *edge1->p2).crossProduct(Vector3D(*edge2->p1, *edge2->p2));
+			if (!n.notZero()) {
+				continue;// vectors parralel, cant find normal
+			}
+			n = n.getUnitVector();
+			
+			bool alreadyTested = false;
+			for (Vector3D dir : testedDirs) {
+				if (abs(n.dotProduct(dir)) > 0.99) {
+					alreadyTested = true;
+				}
+			}
+			if (alreadyTested) {
+				continue;
+			}
+			testedDirs.push_back(n);
 
 			double colliderMax, colliderMin, collideeMax, collideeMin;
 			Point3D potColPoint;
@@ -1002,6 +1026,10 @@ bool RigidBody::SATEdgeCol(RigidBody* b, Point3D* collisionPoint, Vector3D* nVec
 
 			if (!(colliderMin > collideeMax || colliderMax < collideeMin)) { //check for intersection
 				double colDepth = collideeMax - colliderMin;
+				if (colliderMax - collideeMin < colDepth) {
+					colDepth = colliderMax - collideeMin;
+					n = n.getInverse();
+				}
 
 				if (colDepth < lowestColDepth || lowestColDepth == -1) {
 					Vector3D e1Axis = Vector3D(*edge1->p1, *edge1->p2).multiply(edge1->inverseMagnitude);
@@ -1028,12 +1056,7 @@ bool RigidBody::SATEdgeCol(RigidBody* b, Point3D* collisionPoint, Vector3D* nVec
 					Point3D* p1 = edge1->p1;
 					Vector3D e1ToColP = e1Axis.multiply(intersectE1AxisVal);
 					colPoint = Point3D(p1->x + e1ToColP.x, p1->y + e1ToColP.y, p1->z + e1ToColP.z);
-					if (Vector3D(centerOfMass, *p1).dotProduct(n) > 0) {
-						colVector = n;
-					}
-					else {
-						colVector = n.getInverse();
-					}
+					colVector = n;
 					lowestColDepth = colDepth;
 				}
 			}
@@ -1086,7 +1109,7 @@ RigidBody::ColPointInfo::ColPointInfo(double x, double y, double z, Vector3D* co
 }
 
 
-void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* colOutputs, RigidBody& body, double timestep) {
+/*void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* colOutputs, RigidBody& body, double timestep) {
 	
 	for (Point3D* p : colPoints) {
 		//check if point is within collision radius to ignore points that cant possibly be inside
@@ -1105,7 +1128,7 @@ void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* c
 		for (RigidSurface* potentialCollisionSurface : *(body.getSurfaces())) {
 			Point3D* surfaceP1 = potentialCollisionSurface->getPoints()->at(0);
 			//normal vector of plane
-			Vector3D normalVector(*surfaceP1, *(potentialCollisionSurface->getNormalVectorPoint()));
+			Vector3D normalVector = potentialCollisionSurface->getUnitNorm();
 			//check that p and center of mass are on opposite sides of the plane defined by surface
 			Vector3D p1P(*surfaceP1, *p);
 			Vector3D p1COM(*surfaceP1, centerOfMass);
@@ -1303,4 +1326,4 @@ void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* c
 			k--;
 		} while (swp);
 	}
-}
+}*/

@@ -108,7 +108,6 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 		collidee->applyImpulseAtPosition(impulse, colPoint);
 	}
 	if (frictionImpulse.notZero()) {
-		printf("hello\n");
 		//std::cout << "curr veloc: " << collider->getAngularVelocity()->dotProduct(up) << "\n";
 		/*Vector3D pVel;
 		collider->getVelocityOfPoint(*colPoint, &pVel);
@@ -195,7 +194,8 @@ void PhysicsEngine::iterateEngineTimestep() {
 					collider = body1;
 				}
 
-				printf("%f, %f, %f, %f, %f\n", norm.x, norm.y, norm.z, colDepth, collidee->getInverseMass());
+				//bool eCol = body1->SATEdgeCol(body2, &colPointE, &normE, &colDepthE, &separatingAxisE);
+				//printf("%f, %f, %f, %f, %f\n", norm.x, norm.y, norm.z, colDepth, collidee->getInverseMass());
 
 				if (true || collidee->verifyCollisionPointNotExiting(*collidee, norm, colPoint)) {
 					resolveImpulses(collider, collidee, norm, colPoint, collidee->getRestitution(), false);

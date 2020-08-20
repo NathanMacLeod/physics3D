@@ -9,7 +9,7 @@
 class RigidSurface {
 	std::vector<Point3D*> points;
 	std::vector<double> inverseSegmentMagnitudes;
-	Point3D* normalVectorPoint; //sits over p1 to define normal vector
+	double nVInverseMag;
 
 	void caclulateInverseSegmentMagnitudes();
 public:
@@ -17,7 +17,6 @@ public:
 	RigidSurface(const RigidSurface& surface);
 	std::vector<Point3D*>* getPoints();
 	Vector3D getUnitNorm();
-	Point3D* getNormalVectorPoint();
 	double getInverseSegmentMagnitude(int pointIndex); //returns magntiude of line from point i to point i + 1 in points
 };
 
