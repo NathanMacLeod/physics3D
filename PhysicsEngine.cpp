@@ -185,6 +185,7 @@ void PhysicsEngine::iterateEngineTimestep() {
 					norm = normE;
 					colPoint = colPointE;
 					colDepth = colDepthE;
+					printf("edgecol\n");
 				}
 				if (!(aCol || eCol) || (bCol && colDepthB < colDepth)) {
 					norm = normB;
@@ -195,7 +196,7 @@ void PhysicsEngine::iterateEngineTimestep() {
 				}
 
 				//bool eCol = body1->SATEdgeCol(body2, &colPointE, &normE, &colDepthE, &separatingAxisE);
-				//printf("%f, %f, %f, %f, %f\n", norm.x, norm.y, norm.z, colDepth, collidee->getInverseMass());
+				printf("%f, %f, %f, %f, %f\n", norm.x, norm.y, norm.z, colDepth, collidee->getInverseMass());
 
 				if (true || collidee->verifyCollisionPointNotExiting(*collidee, norm, colPoint)) {
 					resolveImpulses(collider, collidee, norm, colPoint, collidee->getRestitution(), false);

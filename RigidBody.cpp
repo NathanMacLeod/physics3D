@@ -974,7 +974,7 @@ bool RigidBody::SATEdgeCol(RigidBody* b, Point3D* collisionPoint, Vector3D* nVec
 			}
 			n = n.getUnitVector();
 			
-			bool alreadyTested = false;
+			/*bool alreadyTested = false;
 			for (Vector3D dir : testedDirs) {
 				if (abs(n.dotProduct(dir)) > 0.99) {
 					alreadyTested = true;
@@ -983,7 +983,7 @@ bool RigidBody::SATEdgeCol(RigidBody* b, Point3D* collisionPoint, Vector3D* nVec
 			if (alreadyTested) {
 				continue;
 			}
-			testedDirs.push_back(n);
+			testedDirs.push_back(n);*/
 
 			double colliderMax, colliderMin, collideeMax, collideeMin;
 			Point3D potColPoint;

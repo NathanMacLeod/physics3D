@@ -434,10 +434,10 @@ public:
 		dropTime += fElapsedTime;
 		if (dropTime > 5) {
 			dropTime = 0;
-			double x = 0;// 52;
+			double x = 40;// 52;
 			double y = -20;
 			double z = 100;
-			std::vector<Polygon3D*>* b1polygons = createBox(10, 10, 10, x, y, z);
+			std::vector<Polygon3D*>* b1polygons = createBox(30, 10, 10, x, y, z);
 
 			std::vector<Point3D*> points;
 			for (Polygon3D* polygon : *b1polygons) {
