@@ -2,22 +2,26 @@
 #include "transformation3D.h"
 #include <stdio.h>
 
-RigidBody::RigidBody(const std::vector<RigidSurface*>& surfaces, double density, double friction, double restitution, bool fixed) {
+RigidBody::RigidBody(const std::vector<ConvexHull*>& hulls, double density, double friction, double restitution, bool fixed) {
 	this->fixed = fixed;
 	this->friction = friction;
 	this->restitution = restitution;
-	this->surfaces = surfaces;	
+	this->hulls = hulls;
+	//this->surfaces = surfaces;	
 
 	findBodyMassAndInertia(density);
-	createReferenceCopies();
-	findCollisionRadius();
-	findColPointsEdges();
+	//findColPointsEdges();
 
-	for (Point3D* p : colPoints) {
-		pointsToTransform.push_back(p);
+	for (ConvexHull* hull : hulls) {
+		for (Point3D* p : *hull->getColPoints()) {
+			pointsToTransform.push_back(p);
+		}
 	}
-	//if (!fixed)
-	//	velocity.x = 5;
+
+	findCollisionRadius();
+	
+	if (!fixed)
+		angularVelocity = Vector3D(0, 7, 0.1);
 
 	orientationPoint1 = Point3D(centerOfMass.x, centerOfMass.y - 1, centerOfMass.z);
 	orientationPoint2 = Point3D(centerOfMass.x + 1, centerOfMass.y, centerOfMass.z);
@@ -27,13 +31,17 @@ RigidBody::RigidBody(const std::vector<RigidSurface*>& surfaces, double density,
 	pointsToTransform.push_back(&centerOfMass);
 }
 
-RigidBody::Edge::Edge(Point3D* p1, Point3D* p2) {
+std::vector<ConvexHull*>* RigidBody::getHulls() {
+	return &hulls;
+}
+
+/*RigidBody::Edge::Edge(Point3D* p1, Point3D* p2) {
 	this->p1 = p1;
 	this->p2 = p2;
 	inverseMagnitude = 1.0 / Vector3D(*p1, *p2).getMagnitude();
-}
+}*/
 
-void RigidBody::findColPointsEdges() {
+/*void RigidBody::findColPointsEdges() {
 	for (RigidSurface* s : surfaces) {
 		for (int i = 0; i < s->getPoints()->size(); i++) {
 			Point3D* p = s->getPoints()->at(i);
@@ -63,6 +71,44 @@ void RigidBody::findColPointsEdges() {
 			}
 		}
 	}
+}*/
+
+void RigidBody::findBodyMassAndInertia(double density) {
+
+	mass = 0;
+	inertiaTensor = new double[9]{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+	for (ConvexHull* hull : hulls) {
+		mass += hull->getMass();
+		Point3D hullCOM = hull->getCenterOfMass();
+		centerOfMass.x += hullCOM.x * hull->getMass();
+		centerOfMass.y += hullCOM.y * hull->getMass();
+		centerOfMass.z += hullCOM.z * hull->getMass();
+	}
+
+	inverseMass = 1.0 / mass;
+	centerOfMass.x /= mass;
+	centerOfMass.y /= mass;
+	centerOfMass.z /= mass;
+
+	for (ConvexHull* hull : hulls) {
+		Point3D hullCOM = hull->getCenterOfMass();
+		Point3D hullRel;
+		hullRel.x = hullCOM.x - centerOfMass.x;
+		hullRel.y = hullCOM.y - centerOfMass.y;
+		hullRel.z = hullCOM.z - centerOfMass.z;
+		double* hTens = hull->getInertia();
+
+		inertiaTensor[0] += hTens[0] + hull->getMass() * (hullRel.y * hullRel.y + hullRel.z * hullRel.z);
+		inertiaTensor[1] += hTens[1] - hull->getMass() * (hullRel.x * hullRel.y);
+		inertiaTensor[2] += hTens[2] - hull->getMass() * (hullRel.x * hullRel.z);
+		inertiaTensor[3] += hTens[3] - hull->getMass() * (hullRel.x * hullRel.y);
+		inertiaTensor[4] += hTens[4] + hull->getMass() * (hullRel.x * hullRel.x + hullRel.z * hullRel.z);
+		inertiaTensor[5] += hTens[5] - hull->getMass() * (hullRel.z * hullRel.y);
+		inertiaTensor[6] += hTens[6] - hull->getMass() * (hullRel.x * hullRel.z);
+		inertiaTensor[7] += hTens[7] - hull->getMass() * (hullRel.z * hullRel.y);
+		inertiaTensor[8] += hTens[8] + hull->getMass() * (hullRel.x * hullRel.x + hullRel.y * hullRel.y);
+	}
 }
 
 void RigidBody::acclerateLineraly(const Vector3D changeInVelocity) {
@@ -91,7 +137,7 @@ bool RigidBody::getFixed() {
 	return fixed;
 }
 
-enum axis { X, Y, Z };
+/*enum axis { X, Y, Z };
 
 double getAxisVal(Point3D* p, enum axis axis) {
 	switch (axis) {
@@ -105,7 +151,7 @@ double getAxisVal(Point3D* p, enum axis axis) {
 		return p->z;
 		break;
 	}
-}
+}*/
 
 double iExp(double base, int x) {
 	double prod = 1;
@@ -116,7 +162,7 @@ double iExp(double base, int x) {
 }
 
 //Fast and Accurate Computation of Polyhedral Mass Properties (Brian Miritch)
-void RigidBody::findBodyMassAndInertia(double density) {
+/*void RigidBody::findBodyMassAndInertia(double density) {
 	double v = 0, vX = 0, vY = 0, vZ = 0, vXSqrd = 0, vYSqrd = 0, vZSqrd = 0;
 	double vXY = 0, vXZ = 0, vYZ = 0;
 	
@@ -315,13 +361,11 @@ void RigidBody::findBodyMassAndInertia(double density) {
 	printf("%f, %f, %f\n", centerOfMass.x, centerOfMass.y, centerOfMass.z);
 
 	printf("%f\n", mass);
-	printf("____________________________________\n");*/
+	printf("____________________________________\n");
 	
-}
+}*/
 
 Vector3D RigidBody::findVectorRelativeToBodyFrame(const Vector3D vector) {
-	Vector3D output;
-
 	Vector3D orientationVector1(centerOfMass, orientationPoint1);
 	Vector3D orientationVector2(centerOfMass, orientationPoint2);
 	Vector3D orientationVector3 = orientationVector1.crossProduct(orientationVector2);
@@ -330,14 +374,11 @@ Vector3D RigidBody::findVectorRelativeToBodyFrame(const Vector3D vector) {
 	double xVal = orientationVector2.dotProduct(vector);
 	double zVal = orientationVector3.dotProduct(vector);
 
-	output.x = xVal;
-	output.y = -negYVal;
-	output.z = zVal;
-	return output;
+	return Vector3D(xVal, -negYVal, zVal);
 }
 
 double RigidBody::findInverseInertiaOfAxis(const Vector3D inputAxis) {
-	if (fixed)
+	if (fixed || !inputAxis.notZero())
 		return 0;
 	Vector3D axis = findVectorRelativeToBodyFrame(inputAxis).getUnitVector();
 	double vec1 = inertiaTensor[0] * axis.x + inertiaTensor[1] * axis.y + inertiaTensor[2] * axis.z;
@@ -360,7 +401,7 @@ void RigidBody::applyImpulseAtPosition(const Vector3D impulse, const Point3D pos
 	angularVelocity = angularVelocity.add(deltaW);
 }
 
-void RigidBody::createReferenceCopies() {
+/*void RigidBody::createReferenceCopies() {
 	std::vector<Point3D*> referencePoints;
 	for (RigidSurface* surface : surfaces) {
 		RigidSurface* referenceCopy = new RigidSurface(*surface);
@@ -371,17 +412,17 @@ void RigidBody::createReferenceCopies() {
 	}
 	Vector3D translation(-centerOfMass.x, -centerOfMass.y, -centerOfMass.z);
 	transformation3D::translatePoints(&referencePoints, translation);
-}
+}*/
 
 void RigidBody::findCollisionRadius() {
 	double greatestRadiusSquared = 0;
-	for (RigidSurface* surface : surfacesReferenceCopy) {
-		for (Point3D* p : *(surface->getPoints())) {
-			double squaredRadius = p->x * p->x + p->y * p->y + p->z * p->z;
-			if (squaredRadius > greatestRadiusSquared)
-				greatestRadiusSquared = squaredRadius;
-		}
+	for (Point3D* p : pointsToTransform) {
+		double squaredRadius = (centerOfMass.x - p->x) * (centerOfMass.x - p->x) + (centerOfMass.y - p->y) * (centerOfMass.y - p->y)
+			+ (centerOfMass.z - p->z) * (centerOfMass.z - p->z);
+		if (squaredRadius > greatestRadiusSquared)
+			greatestRadiusSquared = squaredRadius;
 	}
+	
 	collisionRadiusSquared = greatestRadiusSquared;
 	collisionRadius = sqrt(greatestRadiusSquared);
 	
@@ -464,11 +505,11 @@ double RigidBody::getCollisionRadiusSquared() const {
 	return collisionRadiusSquared;
 }
 
-Point3D* RigidBody::getCenterOfMass() {
-	return &centerOfMass;
+Point3D RigidBody::getCenterOfMass() {
+	return centerOfMass;
 }
 
-bool RigidBody::getPointInsideBody(const Point3D point, const std::vector<Point3D*> vectorPositions, const std::vector<Vector3D*> normalVectors) {
+/*bool RigidBody::getPointInsideBody(const Point3D point, const std::vector<Point3D*> vectorPositions, const std::vector<Vector3D*> normalVectors) {
 	for (int i = 0; i < vectorPositions.size(); i++) {
 		Vector3D* normalVector = normalVectors.at(i);
 		Point3D* vectorPos = vectorPositions.at(i);
@@ -477,9 +518,9 @@ bool RigidBody::getPointInsideBody(const Point3D point, const std::vector<Point3
 			return false;
 	}
 	return true;
-}
+}*/
 
-bool RigidBody::getPointInsideBody(const Point3D point) {
+/*bool RigidBody::getPointInsideBody(const Point3D point) {
 	for (RigidSurface* surface : surfaces) {
 		Vector3D normalVector = surface->getUnitNorm();
 		Vector3D posToPoint(*(surface->getPoints()->at(0)), point);
@@ -487,12 +528,12 @@ bool RigidBody::getPointInsideBody(const Point3D point) {
 			return false;
 	}
 	return true;
-}
+}*/
 
 bool RigidBody::bodiesInCollisionRange(RigidBody& body) {
-	double xDist = abs(centerOfMass.x - body.getCenterOfMass()->x);
-	double yDist = abs(centerOfMass.y - body.getCenterOfMass()->y);
-	double zDist = abs(centerOfMass.z - body.getCenterOfMass()->z);
+	double xDist = centerOfMass.x - body.getCenterOfMass().x;
+	double yDist = centerOfMass.y - body.getCenterOfMass().y;
+	double zDist = centerOfMass.z - body.getCenterOfMass().z;
 
 	//if (xDist > collisionRadius + body.getCollisionRadius() || yDist > collisionRadius + body.getCollisionRadius() || zDist > collisionRadius + body.getCollisionRadius())
 	//	return false;
@@ -501,9 +542,9 @@ bool RigidBody::bodiesInCollisionRange(RigidBody& body) {
 	return true;
 }
 
-std::vector<RigidSurface*>* RigidBody::getSurfaces() {
+/*std::vector<RigidSurface*>* RigidBody::getSurfaces() {
 	return &surfaces;
-}
+}*/
 
 Vector3D RigidBody::getVelocityOfPointDueToAngularVelocity(const Point3D point) const {
 	Vector3D centerOfMassToPoint(centerOfMass, point);
@@ -532,7 +573,7 @@ bool RigidBody::verifyCollisionPointNotExiting(const RigidBody body, const Vecto
 	return vPRelative.dotProduct(normalVector) < 0;
 }
 
-Vector3D RigidBody::findSupportPoint(const Vector3D direction) {
+/*Vector3D RigidBody::findSupportPoint(const Vector3D direction) {
 	Vector3D suppPoint;
 	double greatestDist;
 	bool first = true;
@@ -854,14 +895,20 @@ double RigidBody::findInteriorDist(std::vector<Vector3D>& simplex, RigidBody& ot
 	}
 
 	return dist;
-}
+}*/
 
-bool RigidBody::SATColliderDetect(RigidBody* potCollider, Point3D* collisionPoint, Vector3D* nVect, double* colDepth, bool* separatingAxis) {
+/*RigidBody::ColPointInfo::ColPointInfo(Point3D p, double penDepth) {
+	this->point = p;
+	this->penDepth = penDepth;
+}*/
+
+/*bool RigidBody::SATColliderDetect(RigidBody* potCollider, std::vector<ColPointInfo>* colSupPoints, Point3D* collisionPoint, Vector3D* nVect, double* colDepth, bool* separatingAxis) {
 	std::vector<Vector3D> testedDirs;
 
 	Point3D colPoint;
 	Vector3D colVector;
 	double lowestColDepth = -1;
+	double winningCollideeMax;
 	Point3D zero(0, 0, 0);
 	
 	for (RigidSurface* s : surfaces) {
@@ -922,13 +969,16 @@ bool RigidBody::SATColliderDetect(RigidBody* potCollider, Point3D* collisionPoin
 					maxPoint = *p;
 				}
 			}
+
 		}
 
 		if (!(colliderMin > collideeMax || colliderMax < collideeMin)) { //check for intersection
 			double colDepth = collideeMax - colliderMin;
 			Point3D potColPoint = minPoint;
+			bool flipped = false;
 			//printf("exit1: %f;   exit2: %f\n", collideeMax - colliderMin, colliderMax - collideeMin);
 			if (colliderMax - collideeMin < colDepth) {
+				flipped = true;
 				colDepth = colliderMax - collideeMin;
 				n = n.getInverse();
 				potColPoint = maxPoint;
@@ -938,6 +988,7 @@ bool RigidBody::SATColliderDetect(RigidBody* potCollider, Point3D* collisionPoin
 				lowestColDepth = colDepth;
 				colPoint = potColPoint;
 				colVector = n;
+				winningCollideeMax = (flipped)? - collideeMin : collideeMax;
 			}
 		}
 		else {
@@ -947,14 +998,23 @@ bool RigidBody::SATColliderDetect(RigidBody* potCollider, Point3D* collisionPoin
 		}
 	}
 
+	if (lowestColDepth != -1) {
+		for (Point3D* p : potCollider->colPoints) {
+			if (getPointInsideBody(*p)) {
+				double nDotVal = Vector3D(zero, *p).dotProduct(colVector);
+				colSupPoints->push_back(ColPointInfo(*p, winningCollideeMax - nDotVal));
+			}
+		}
+	}
+
 	*collisionPoint = colPoint;
 	*nVect = colVector;
 	*colDepth = lowestColDepth;
 	*separatingAxis = false;
 	return lowestColDepth != -1;
-}
+}*/
 
-bool RigidBody::SATEdgeCol(RigidBody* b, Point3D* collisionPoint, Vector3D* nVect, double* collisionDepth, bool* separatingAxis) {
+/*bool RigidBody::SATEdgeCol(RigidBody* b, Point3D* collisionPoint, Vector3D* nVect, double* collisionDepth, bool* separatingAxis) {
 	std::vector<Vector3D> testedDirs;
 
 	Point3D colPoint;
@@ -983,7 +1043,7 @@ bool RigidBody::SATEdgeCol(RigidBody* b, Point3D* collisionPoint, Vector3D* nVec
 			if (alreadyTested) {
 				continue;
 			}
-			testedDirs.push_back(n);*/
+			testedDirs.push_back(n);
 
 			double colliderMax, colliderMin, collideeMax, collideeMin;
 			Point3D potColPoint;
@@ -1073,9 +1133,9 @@ bool RigidBody::SATEdgeCol(RigidBody* b, Point3D* collisionPoint, Vector3D* nVec
 	*collisionDepth = lowestColDepth;
 	*separatingAxis = false;
 	return lowestColDepth != -1;
-}
+}*/
 
-std::vector<Point3D> RigidBody::getClosestFeature(Vector3D dir) {
+/*std::vector<Point3D> RigidBody::getClosestFeature(Vector3D dir) {
 	Point3D origin(0, 0, 0);
 	std::vector<Point3D> feature;
 	double currDist = 0;
@@ -1096,17 +1156,7 @@ std::vector<Point3D> RigidBody::getClosestFeature(Vector3D dir) {
 		}
 	}
 	return feature;
-}
-
-RigidBody::ColPointInfo::ColPointInfo(double x, double y, double z, Vector3D* colNormVector, double penDepth) {
-	this->point.x = x;
-	this->point.y = y;
-	this->point.z = z;
-	this->colNormVector.x = colNormVector->x;
-	this->colNormVector.y = colNormVector->y;
-	this->colNormVector.z = colNormVector->z;
-	this->penDepth = penDepth;
-}
+}*/
 
 
 /*void RigidBody::findCollisionInformationAsCollider(std::vector<ColPointInfo*>* colOutputs, RigidBody& body, double timestep) {

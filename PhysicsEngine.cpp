@@ -41,13 +41,13 @@ void PhysicsEngine::pushBodiesApart(RigidBody* collider, RigidBody* collidee, co
 	collidee->translate(cldeTransform);
 }
 
-void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Point3D colPoint, double restitution, bool contactCollision) {
+void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Point3D colPoint, const std::vector<ConvexHull::ColPointInfo> supPoints, double restitution, double colDepth, bool faceCol) {
 
 	Vector3D vCldrP0 = collider->getVelocityOfPoint(colPoint);
 	Vector3D vCldeP0 = collidee->getVelocityOfPoint(colPoint);
 	Vector3D velRel = vCldeP0.sub(vCldrP0);
-	Vector3D rClde(*(collidee->getCenterOfMass()), colPoint);
-	Vector3D rCldr(*(collider->getCenterOfMass()), colPoint);
+	Vector3D rClde(collidee->getCenterOfMass(), colPoint);
+	Vector3D rCldr(collider->getCenterOfMass(), colPoint);
 	Vector3D jRotAxisCldr = rCldr.crossProduct(nV);
 	Vector3D jRotAxisClde = rClde.crossProduct(nV);
 	double invIClde = collidee->findInverseInertiaOfAxis(jRotAxisClde);
@@ -55,11 +55,6 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 	double normVel = nV.dotProduct(velRel);
 	Vector3D rCldeXn = rClde.crossProduct(nV);
 	Vector3D rCldrXn = rCldr.crossProduct(nV);
-	static double lowestVel = 10;
-	if (normVel < lowestVel) {
-		lowestVel = normVel;
-	}
-
 
 	double numerator = -(restitution + 1) * normVel;
 	double denomenator = (collider->getInverseMass() + collidee->getInverseMass() + rCldrXn.getMagnitudeSquared() * invICldr + rCldeXn.getMagnitudeSquared() * invIClde);
@@ -70,7 +65,7 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 	Vector3D velParralel = nV.multiply(normVel);
 	Vector3D k = velRel.sub(velParralel);
 	Vector3D frictionImpulse;
-	if (k.notZero()) {
+	if (k.notZero() && !faceCol) {
 		k = k.getUnitVector();
 		jRotAxisCldr = rCldr.crossProduct(k);
 		jRotAxisClde = rClde.crossProduct(k);
@@ -82,7 +77,7 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 		denomenator = (collider->getInverseMass() + collidee->getInverseMass() + rCldrXk.getMagnitudeSquared() * invICldr + rCldeXk.getMagnitudeSquared() * invIClde);
 		double frictionImpMag = abs(numerator / denomenator);
 		//std::cout << contactCollision << ", " << (velParralel.getMagnitudeSquared() < staticVel) << "\n";
-		double maxFriction = (contactCollision && velParralel.getMagnitudeSquared() < staticVel)? 30 * impulseMagnitude : impulseMagnitude * collidee->getFriction();
+		double maxFriction = impulseMagnitude * collidee->getFriction();
 		if (frictionImpMag > maxFriction) {
 			frictionImpMag = maxFriction;
 		}
@@ -158,52 +153,132 @@ void PhysicsEngine::iterateEngineTimestep() {
 			if (!body1->bodiesInCollisionRange(*body2))
 				continue;
 
+			std::vector<ConvexHull::ColPointInfo> supPoints;
 			Vector3D norm;
 			Point3D colPoint;
-			double colDepth;
+			double colDepth = -1;
 			bool separatingAxis;
-
-			Vector3D normB;
-			Point3D colPointB;
-			double colDepthB;
-			bool separatingAxisB;
-			
-			Vector3D normE;
-			Point3D colPointE;
-			double colDepthE;
-			bool separatingAxisE;
+			bool isFaceCollision = true;
 
 			RigidBody* collider = body2;
 			RigidBody* collidee = body1;
 
-			bool aCol = body1->SATColliderDetect(body2, &colPoint, &norm, &colDepth, &separatingAxis);
-			bool bCol = body2->SATColliderDetect(body1, &colPointB, &normB, &colDepthB, &separatingAxisB);
-			bool eCol = body1->SATEdgeCol(body2, &colPointE, &normE, &colDepthE, &separatingAxisE);
+			for (ConvexHull* hullA : *body1->getHulls()) {
+				for (ConvexHull* hullB : *body2->getHulls()) {
 
-			if ((aCol || bCol || eCol) && !(separatingAxis || separatingAxisB)) {
-				if (!aCol || (eCol && colDepthE < colDepth)) {
-					norm = normE;
-					colPoint = colPointE;
-					colDepth = colDepthE;
-					printf("edgecol\n");
-				}
-				if (!(aCol || eCol) || (bCol && colDepthB < colDepth)) {
-					norm = normB;
-					colPoint = colPointB;
-					colDepth = colDepthB;
-					collidee = body2;
-					collider = body1;
-				}
+					if (!hullA->hullsInCollisionRange(*hullB))
+						continue;
 
-				//bool eCol = body1->SATEdgeCol(body2, &colPointE, &normE, &colDepthE, &separatingAxisE);
-				printf("%f, %f, %f, %f, %f\n", norm.x, norm.y, norm.z, colDepth, collidee->getInverseMass());
+					std::vector<ConvexHull::ColPointInfo> supPointsA;
+					Vector3D normA;
+					Point3D colPointA;
+					double colDepthA;
+					bool separatingAxisA;
 
-				if (true || collidee->verifyCollisionPointNotExiting(*collidee, norm, colPoint)) {
-					resolveImpulses(collider, collidee, norm, colPoint, collidee->getRestitution(), false);
+					bool faceCollision = true;
+
+					std::vector<ConvexHull::ColPointInfo> supPointsB;
+					Vector3D normB;
+					Point3D colPointB;
+					double colDepthB;
+					bool separatingAxisB;
+
+					Vector3D normE;
+					Point3D colPointE;
+					double colDepthE;
+					bool separatingAxisE;
+
+					RigidBody* potCollider = body2;
+					RigidBody* potCollidee = body1;
+
+					bool aCol = hullA->SATColliderDetect(hullB, &supPointsA, &colPointA, &normA, &colDepthA, &separatingAxisA);
+					bool bCol = hullB->SATColliderDetect(hullA, &supPointsB, &colPointB, &normB, &colDepthB, &separatingAxisB);
+					bool eCol = hullA->SATEdgeCol(hullB, &colPointE, &normE, &colDepthE, &separatingAxisE);
+
+					if ((aCol || bCol || eCol) && !(separatingAxisA || separatingAxisB || separatingAxisE)) {
+						if (!aCol || (eCol && colDepthE < colDepthA)) {
+							normA = normE;
+							colPointA = colPointE;
+							colDepthA = colDepthE;
+							faceCollision = false;
+						}
+						if (!(aCol || eCol) || (bCol && colDepthB < colDepthA)) {
+							normA = normB;
+							colPointA = colPointB;
+							colDepthA = colDepthB;
+							potCollidee = body2;
+							potCollider = body1;
+							faceCollision = true;
+							supPointsA = supPointsB;
+						}
+
+						if (colDepthA < colDepth || colDepth == -1) {
+							supPoints = supPointsA;
+							norm = normA;
+							colPoint = colPointA;
+							colDepth = colDepthA;
+							separatingAxis = separatingAxisA;
+							isFaceCollision = faceCollision;
+							collidee = potCollidee;
+							collider = potCollider;
+
+							//bool aCol = hullA->SATColliderDetect(hullB, &supPointsA, &colPointA, &normA, &colDepthA, &separatingAxisA);
+						}
+					}
 				}
-				pushBodiesApart(collider, collidee, norm, colDepth);
 			}
+			//bool eCol = body1->SATEdgeCol(body2, &colPointE, &normE, &colDepthE, &separatingAxisE);
+			//printf("%f, %f, %f, %f, %f\n", norm.x, norm.y, norm.z, colDepth, collidee->getInverseMass());
+			if (colDepth != -1) {
 
+				//printf("%f, %f, %f, %f, %f, %f, %f, %f, %d\n", norm.x, norm.y, norm.z, colPoint.x, colPoint.y, colPoint.z, colDepth, collidee->getInverseMass(), isFaceCollision);
+
+				bool contactColl = false;
+
+				if (isFaceCollision) {
+					Vector3D vCldrP0 = collider->getVelocityOfPoint(colPoint);
+					Vector3D vCldeP0 = collidee->getVelocityOfPoint(colPoint);
+					Vector3D velRel = vCldeP0.sub(vCldrP0);
+					double normVel = norm.dotProduct(velRel);
+					if (true || normVel < gravity.getMagnitude() / (2.25)) {
+						contactColl = true;
+						Point3D average(0, 0, 0);
+						double depth = 0;
+						for (ConvexHull::ColPointInfo supPoint : supPoints) {
+							average.x += supPoint.point.x;
+							average.y += supPoint.point.y;
+							average.z += supPoint.point.z;
+							depth += supPoint.penDepth;
+						}
+						average.x /= supPoints.size();
+						average.y /= supPoints.size();
+						average.z /= supPoints.size();
+						depth /= supPoints.size();
+						//printf("%f, %f, %f, %f, hmm yes\n", average.x, average.y, average.z, depth);
+						//printf("exiting I guess %d\n", supPoints.size());
+						if (collider->verifyCollisionPointNotExiting(*collidee, norm, average)) {
+							resolveImpulses(collider, collidee, norm, average, supPoints, (normVel < gravity.getMagnitude() / (2.25)) ? 0 : collidee->getRestitution(), depth, false);
+						}
+						/*for (RigidBody::ColPointInfo supPoint : supPoints) {
+							printf("exiting I guess %d\n", supPoints.size());
+							if (collider->verifyCollisionPointNotExiting(*collidee, norm, supPoint.point)) {
+								printf("penDepth: %f\n", supPoint.penDepth);
+
+								resolveImpulses(collider, collidee, norm, supPoint.point, supPoints, -0.5 * supPoint.penDepth, colDepth, false);
+							}
+						}*/
+					}
+				}
+
+				if (!contactColl && !collidee->verifyCollisionPointNotExiting(*collider, norm, colPoint)) {
+					resolveImpulses(collider, collidee, norm, colPoint, supPoints, collidee->getRestitution(), colDepth, false);
+				}
+
+				pushBodiesApart(collider, collidee, norm, (contactColl) ? 0.15 * colDepth : colDepth);
+
+			}
+					
+		}
 			/*int maxItr = 5;
 			int eps = 0.1;
 			double dist = -1;
@@ -368,6 +443,6 @@ void PhysicsEngine::iterateEngineTimestep() {
 					delete colPoint;
 			}
 			*/
-		}
+		
 	}
 }

@@ -417,7 +417,9 @@ public:
 		//cameraPos.x = 52;
 
 		std::vector<Polygon3D*>* b2polygons = createBox(100, 5, 100, 0, 30, 100);
-		RigidBody* b2 = new RigidBody(*createRigidBodyFromPolygons(*b2polygons), 1, 0.5, 0.3, true);
+		std::vector<ConvexHull*>* hulls = new std::vector<ConvexHull*>();
+		hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b2polygons), 1));
+		RigidBody* b2 = new RigidBody(*hulls, 1, 1, 0.3, true);
 		pEngine.addRigidBody(b2);
 
 		for (Polygon3D* polygon : *b2polygons) {
@@ -434,10 +436,10 @@ public:
 		dropTime += fElapsedTime;
 		if (dropTime > 5) {
 			dropTime = 0;
-			double x = 40;// 52;
+			double x = 5;// 52;
 			double y = -20;
 			double z = 100;
-			std::vector<Polygon3D*>* b1polygons = createBox(30, 10, 10, x, y, z);
+			std::vector<Polygon3D*>* b1polygons = createBox(3, 25, 3, x, y, z);
 
 			std::vector<Point3D*> points;
 			for (Polygon3D* polygon : *b1polygons) {
@@ -465,10 +467,74 @@ public:
 			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, x, y, z, 3.14159 / 3.0);
 			Vector3D axis2(0, 0, 1);
 			axis2 = axis2.getUnitVector();
+
+			std::vector<Polygon3D*>* b2polygons = createBox(10, 10, 10, x, y - 15, z);
+
+			std::vector<Point3D*> b2points;
+			for (Polygon3D* polygon : *b2polygons) {
+				allPolygons->push_back(polygon);
+				bool p1 = true;
+				bool p2 = true;
+				bool p3 = true;
+				for (Point3D* p : points) {
+					if (polygon->p1 == p)
+						p1 = false;
+					if (polygon->p2 == p)
+						p2 = false;
+					if (polygon->p3 == p)
+						p3 = false;
+				}
+				if (p1)
+					b2points.push_back(polygon->p1);
+				if (p2)
+					b2points.push_back(polygon->p2);
+				if (p3)
+					b2points.push_back(polygon->p3);
+			}
+			//Vector3D axis(0, 1, 0);
+			//axis = axis.getUnitVector();
+			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, x, y, z, 3.14159 / 3.0);
+			//Vector3D axis2(0, 0, 1);
+			//axis2 = axis2.getUnitVector();
+
+			std::vector<Polygon3D*>* b3polygons = createBox(10, 10, 10, x, y + 15, z);
+
+			std::vector<Point3D*> b3points;
+			for (Polygon3D* polygon : *b3polygons) {
+				//allPolygons->push_back(polygon);
+				bool p1 = true;
+				bool p2 = true;
+				bool p3 = true;
+				for (Point3D* p : points) {
+					if (polygon->p1 == p)
+						p1 = false;
+					if (polygon->p2 == p)
+						p2 = false;
+					if (polygon->p3 == p)
+						p3 = false;
+				}
+				if (p1)
+					b3points.push_back(polygon->p1);
+				if (p2)
+					b3points.push_back(polygon->p2);
+				if (p3)
+					b3points.push_back(polygon->p3);
+			}
+			//Vector3D axis(0, 1, 0);
+			//axis = axis.getUnitVector();
+			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, x, y, z, 3.14159 / 3.0);
+			//Vector3D axis2(0, 0, 1);
+			//axis2 = axis2.getUnitVector();
 			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis2, x, y, z, -3.14159 / 3);
-			RigidBody* b1 = new RigidBody(*createRigidBodyFromPolygons(*b1polygons), 1, 0.5, 0.3, false);
+			std::vector<ConvexHull*>* hulls = new std::vector<ConvexHull*>();
+			hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b1polygons), 1));
+			hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b2polygons), 1));
+			//hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b3polygons), 1));
+			RigidBody* b1 = new RigidBody(*hulls, 1, 1, 0.3, false);
 			pEngine.addRigidBody(b1);
 			delete b1polygons;
+			delete b2polygons;
+			delete b3polygons;
 		}
 
 		queuedTime += fElapsedTime;
