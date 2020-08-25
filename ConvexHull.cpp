@@ -32,8 +32,6 @@ void ConvexHull::findColPointsEdges() {
 
 			Point3D* p2 = (i + 1 == s->getPoints()->size()) ? s->getPoints()->at(0) : s->getPoints()->at(i + 1);
 			bool edgeAlreadyAdded = false;
-			//double epsilon = 0.0001;
-			//Vector3D nV(*s->getPoints()->at(0), *s->getNormalVectorPoint());
 			for (Edge* edge : colEdges) {
 				if ((edge->p1 == p && edge->p2 == p2) || (edge->p2 == p && edge->p1 == p2)) {
 					edgeAlreadyAdded = true;
@@ -220,8 +218,6 @@ void ConvexHull::findBodyMassAndInertia(double density) {
 		*sCCbd = -invC * invC * invC * invC * (k * k * k * f + nA * nA * nA * fACbd + nB * nB * nB * fBCbd + 3 * k * nA * nA * fASqrd + 3 * k * nB * nB * fBSqrd +
 			3 * nA * nA * nB * fASqrdB + 3 * nA * nB * nB * fBSqrdA + 3 * k * k * nA * fA + 3 * k * k * nB * fB + 6 * k * nA * nB * fAB);
 
-		//printf("sZSqrd: %f, sASqrd: %f, sBSqrd: %f, sCSqrd: %f\n", sZSqrd, *sASqrd, *sBSqrd, *sCSqrd);
-
 		v += normV.x * sX;
 		vX += 0.5 * normV.x * sXSqrd;
 		vY += 0.5 * normV.y * sYSqrd;
@@ -315,16 +311,53 @@ bool ConvexHull::hullsInCollisionRange(ConvexHull& hull) {
 	double yDist = centerOfMass.y - hull.centerOfMass.y;
 	double zDist = centerOfMass.z - hull.centerOfMass.z;
 
-	//if (xDist > collisionRadius + body.getCollisionRadius() || yDist > collisionRadius + body.getCollisionRadius() || zDist > collisionRadius + body.getCollisionRadius())
-	//	return false;
-	if (xDist * xDist + yDist * yDist + zDist * zDist > (collisionRadius + hull.getCollisionRadius()) * (collisionRadius + hull.getCollisionRadius()))
-		return false;
-	return true;
+	double sqrDist = xDist * xDist + yDist * yDist + zDist * zDist;
+	double colDist = (collisionRadius + hull.getCollisionRadius()) * (collisionRadius + hull.getCollisionRadius());
+	return sqrDist <= colDist;
 }
 
 ConvexHull::ColPointInfo::ColPointInfo(Point3D p, double penDepth) {
 	this->point = p;
 	this->penDepth = penDepth;
+}
+
+void ConvexHull::findMaxMin(Vector3D n, double* max, double* min, Point3D* maxP, Point3D* minP) {
+	Point3D zero(0, 0, 0);
+
+	double nMax, nMin;
+	bool init = true;
+	Point3D* minPoint = nullptr;
+	Point3D* maxPoint = nullptr;
+
+	for (Point3D* p : colPoints) {
+		double nDotVal = Vector3D(zero, *p).dotProduct(n);
+		if (init) {
+			nMin = nDotVal;
+			nMax = nDotVal;
+			minPoint = p;
+			maxPoint = p;
+			init = false;
+		}
+		else {
+			if (nDotVal < nMin) {
+				nMin = nDotVal;
+				minPoint = p;
+			}
+			else if (nDotVal > nMax) {
+				nMax = nDotVal;
+				maxPoint = p;
+			}
+		}
+	}
+
+	*max = nMax;
+	*min = nMin;
+	if (maxP != nullptr) {
+		*maxP = *maxPoint;
+	}
+	if (minP != nullptr) {
+		*minP = *minPoint;
+	}
 }
 
 bool ConvexHull::SATColliderDetect(ConvexHull* potCollider, std::vector<ColPointInfo>* colSupPoints, Point3D* collisionPoint, Vector3D* nVect, double* colDepth, bool* separatingAxis) {
@@ -334,7 +367,6 @@ bool ConvexHull::SATColliderDetect(ConvexHull* potCollider, std::vector<ColPoint
 	Vector3D colVector;
 	double lowestColDepth = -1;
 	double winningCollideeMax;
-	Point3D zero(0, 0, 0);
 
 	for (RigidSurface* s : surfaces) {
 		Vector3D n = s->getUnitNorm();
@@ -351,57 +383,18 @@ bool ConvexHull::SATColliderDetect(ConvexHull* potCollider, std::vector<ColPoint
 		testedDirs.push_back(n);
 
 		double colliderMax, colliderMin, collideeMax, collideeMin;
-		Point3D potColPoint;
-		bool colliderFirst = true;
-		bool collideeFirst = true;
+		
 
 		Point3D minPoint;
 		Point3D maxPoint;
 
-		for (Point3D* p : colPoints) {
-			double nDotVal = Vector3D(zero, *p).dotProduct(n);
-			if (collideeFirst) {
-				collideeMin = nDotVal;
-				collideeMax = nDotVal;
-				collideeFirst = false;
-			}
-			else {
-				if (nDotVal < collideeMin) {
-					collideeMin = nDotVal;
-				}
-				else if (nDotVal > collideeMax) {
-					collideeMax = nDotVal;
-				}
-			}
-		}
-
-		for (Point3D* p : potCollider->colPoints) {
-			double nDotVal = Vector3D(zero, *p).dotProduct(n);
-			if (colliderFirst) {
-				colliderMin = nDotVal;
-				colliderMax = nDotVal;
-				colliderFirst = false;
-				minPoint = *p;
-				maxPoint = *p;
-			}
-			else {
-				if (nDotVal < colliderMin) {
-					colliderMin = nDotVal;
-					minPoint = *p;
-				}
-				else if (nDotVal > colliderMax) {
-					colliderMax = nDotVal;
-					maxPoint = *p;
-				}
-			}
-
-		}
+		findMaxMin(n, &collideeMax, &collideeMin, nullptr, nullptr);
+		potCollider->findMaxMin(n, &colliderMax, &colliderMin, &maxPoint, &minPoint);
 
 		if (!(colliderMin > collideeMax || colliderMax < collideeMin)) { //check for intersection
 			double colDepth = collideeMax - colliderMin;
 			Point3D potColPoint = minPoint;
 			bool flipped = false;
-			//printf("exit1: %f;   exit2: %f\n", collideeMax - colliderMin, colliderMax - collideeMin);
 			if (colliderMax - collideeMin < colDepth) {
 				flipped = true;
 				colDepth = colliderMax - collideeMin;
@@ -424,6 +417,7 @@ bool ConvexHull::SATColliderDetect(ConvexHull* potCollider, std::vector<ColPoint
 	}
 
 	if (lowestColDepth != -1) {
+		Point3D zero(0, 0, 0);
 		for (Point3D* p : potCollider->colPoints) {
 			if (getPointInsideBody(*p)) {
 				double nDotVal = Vector3D(zero, *p).dotProduct(colVector);
@@ -439,7 +433,7 @@ bool ConvexHull::SATColliderDetect(ConvexHull* potCollider, std::vector<ColPoint
 	return lowestColDepth != -1;
 }
 
-bool ConvexHull::SATEdgeCol(ConvexHull* b, Point3D* collisionPoint, Vector3D* nVect, double* collisionDepth, bool* separatingAxis) {
+bool ConvexHull::SATEdgeCol(ConvexHull* potCollider, Point3D* collisionPoint, Vector3D* nVect, double* collisionDepth, bool* separatingAxis) {
 	std::vector<Vector3D> testedDirs;
 
 	Point3D colPoint;
@@ -451,7 +445,7 @@ bool ConvexHull::SATEdgeCol(ConvexHull* b, Point3D* collisionPoint, Vector3D* nV
 
 	for (Edge* edge1 : colEdges) {
 
-		for (Edge* edge2 : b->colEdges) {
+		for (Edge* edge2 : potCollider->colEdges) {
 
 			Vector3D n = Vector3D(*edge1->p1, *edge1->p2).crossProduct(Vector3D(*edge2->p1, *edge2->p2));
 			if (!n.notZero()) {
@@ -459,55 +453,13 @@ bool ConvexHull::SATEdgeCol(ConvexHull* b, Point3D* collisionPoint, Vector3D* nV
 			}
 			n = n.getUnitVector();
 
-			/*bool alreadyTested = false;
-			for (Vector3D dir : testedDirs) {
-				if (abs(n.dotProduct(dir)) > 0.99) {
-					alreadyTested = true;
-				}
-			}
-			if (alreadyTested) {
-				continue;
-			}
-			testedDirs.push_back(n);*/
 
 			double colliderMax, colliderMin, collideeMax, collideeMin;
-			Point3D potColPoint;
 			bool colliderFirst = true;
 			bool collideeFirst = true;
 
-			for (Point3D* p : colPoints) {
-				double nDotVal = Vector3D(zero, *p).dotProduct(n);
-				if (collideeFirst) {
-					collideeMin = nDotVal;
-					collideeMax = nDotVal;
-					collideeFirst = false;
-				}
-				else {
-					if (nDotVal < collideeMin) {
-						collideeMin = nDotVal;
-					}
-					else if (nDotVal > collideeMax) {
-						collideeMax = nDotVal;
-					}
-				}
-			}
-
-			for (Point3D* p : b->colPoints) {
-				double nDotVal = Vector3D(zero, *p).dotProduct(n);
-				if (colliderFirst) {
-					colliderMin = nDotVal;
-					colliderMax = nDotVal;
-					colliderFirst = false;
-				}
-				else {
-					if (nDotVal < colliderMin) {
-						colliderMin = nDotVal;
-					}
-					else if (nDotVal > colliderMax) {
-						colliderMax = nDotVal;
-					}
-				}
-			}
+			findMaxMin(n, &collideeMax, &collideeMin, nullptr, nullptr);
+			potCollider->findMaxMin(n, &colliderMax, &colliderMin, nullptr, nullptr);
 
 			if (!(colliderMin > collideeMax || colliderMax < collideeMin)) { //check for intersection
 				double colDepth = collideeMax - colliderMin;

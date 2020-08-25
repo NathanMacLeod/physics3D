@@ -39,6 +39,7 @@ private:
 	void findBodyMassAndInertia(double density);
 	void findCollisionRadius();
 	void findColPointsEdges();
+	void findMaxMin(Vector3D n, double* max, double* min, Point3D* maxP, Point3D* minP);
 public:
 	Point3D getCenterOfMass();
 	std::vector<Point3D*>* getColPoints();
