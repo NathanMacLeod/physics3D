@@ -182,6 +182,8 @@ void PhysicsEngine::iterateEngineTimestep() {
 						if (colDepth == -1 || winningDepth > colDepth) {
 							switch (winningCol) {
 							case 0:
+								collider = body2;
+								collidee = body1;
 								supPoints = supPointsA;
 								norm = normA;
 								colPoint = colPointA;
@@ -189,6 +191,8 @@ void PhysicsEngine::iterateEngineTimestep() {
 								isFaceCollision = true;
 								break;
 							case 1:
+								collider = body1;
+								collidee = body2;
 								supPoints = supPointsB;
 								norm = normB;
 								colPoint = colPointB;
