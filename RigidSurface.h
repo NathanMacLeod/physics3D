@@ -3,19 +3,18 @@
 #define RIGIDSURFACE_H
 
 #include <vector>
-#include "Point.h"
 #include "Vector3D.h"
 
 class RigidSurface {
-	std::vector<Point3D*> points;
+	std::vector<Vector3D*> points;
 	std::vector<double> inverseSegmentMagnitudes;
 	double nVInverseMag;
 
 	void caclulateInverseSegmentMagnitudes();
 public:
-	RigidSurface(const std::vector<Point3D*>& points, const Vector3D normalVector);
+	RigidSurface(const std::vector<Vector3D*>& points, const Vector3D normalVector);
 	RigidSurface(const RigidSurface& surface);
-	std::vector<Point3D*>* getPoints();
+	std::vector<Vector3D*>* getPoints();
 	Vector3D getUnitNorm();
 	double getInverseSegmentMagnitude(int pointIndex); //returns magntiude of line from point i to point i + 1 in points
 };

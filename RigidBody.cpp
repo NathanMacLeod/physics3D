@@ -11,7 +11,7 @@ RigidBody::RigidBody(const std::vector<ConvexHull*>& hulls, double density, doub
 	findBodyMassAndInertia(density);
 
 	for (ConvexHull* hull : hulls) {
-		for (Point3D* p : *hull->getColPoints()) {
+		for (Vector3D* p : *hull->getColPoints()) {
 			pointsToTransform.push_back(p);
 		}
 	}
@@ -19,10 +19,10 @@ RigidBody::RigidBody(const std::vector<ConvexHull*>& hulls, double density, doub
 	findCollisionRadius();
 	
 	if (!fixed)
-		angularVelocity = Vector3D(0, 9, 0.2);
+		angularVelocity = Vector3D(0, 15, 0.2);
 
-	orientationPoint1 = Point3D(centerOfMass.x, centerOfMass.y - 1, centerOfMass.z);
-	orientationPoint2 = Point3D(centerOfMass.x + 1, centerOfMass.y, centerOfMass.z);
+	orientationPoint1 = Vector3D(centerOfMass.x, centerOfMass.y - 1, centerOfMass.z);
+	orientationPoint2 = Vector3D(centerOfMass.x + 1, centerOfMass.y, centerOfMass.z);
 
 	pointsToTransform.push_back(&orientationPoint1);
 	pointsToTransform.push_back(&orientationPoint2);
@@ -46,7 +46,7 @@ void RigidBody::findBodyMassAndInertia(double density) {
 
 	for (ConvexHull* hull : hulls) {
 		mass += hull->getMass();
-		Point3D hullCOM = hull->getCenterOfMass();
+		Vector3D hullCOM = hull->getCenterOfMass();
 		centerOfMass.x += hullCOM.x * hull->getMass();
 		centerOfMass.y += hullCOM.y * hull->getMass();
 		centerOfMass.z += hullCOM.z * hull->getMass();
@@ -58,8 +58,8 @@ void RigidBody::findBodyMassAndInertia(double density) {
 	centerOfMass.z /= mass;
 
 	for (ConvexHull* hull : hulls) {
-		Point3D hullCOM = hull->getCenterOfMass();
-		Point3D hullRel;
+		Vector3D hullCOM = hull->getCenterOfMass();
+		Vector3D hullRel;
 		hullRel.x = hullCOM.x - centerOfMass.x;
 		hullRel.y = hullCOM.y - centerOfMass.y;
 		hullRel.z = hullCOM.z - centerOfMass.z;
@@ -137,7 +137,7 @@ double RigidBody::findInverseInertiaOfAxis(const Vector3D inputAxis) {
 	return 1.0 / inertia;
 }
 
-void RigidBody::applyImpulseAtPosition(const Vector3D impulse, const Point3D position) {
+void RigidBody::applyImpulseAtPosition(const Vector3D impulse, const Vector3D position) {
 	if (fixed)
 		return;
 	velocity.x += impulse.x * inverseMass;
@@ -152,7 +152,7 @@ void RigidBody::applyImpulseAtPosition(const Vector3D impulse, const Point3D pos
 
 void RigidBody::findCollisionRadius() {
 	double greatestRadiusSquared = 0;
-	for (Point3D* p : pointsToTransform) {
+	for (Vector3D* p : pointsToTransform) {
 		double squaredRadius = (centerOfMass.x - p->x) * (centerOfMass.x - p->x) + (centerOfMass.y - p->y) * (centerOfMass.y - p->y)
 			+ (centerOfMass.z - p->z) * (centerOfMass.z - p->z);
 		if (squaredRadius > greatestRadiusSquared)
@@ -194,7 +194,7 @@ double RigidBody::getCollisionRadiusSquared() const {
 	return collisionRadiusSquared;
 }
 
-Point3D RigidBody::getCenterOfMass() {
+Vector3D RigidBody::getCenterOfMass() {
 	return centerOfMass;
 }
 
@@ -208,12 +208,12 @@ bool RigidBody::bodiesInCollisionRange(RigidBody* body) {
 	return sqrDist <= colDist;
 }
 
-Vector3D RigidBody::getVelocityOfPointDueToAngularVelocity(const Point3D point) const {
+Vector3D RigidBody::getVelocityOfPointDueToAngularVelocity(const Vector3D point) const {
 	Vector3D centerOfMassToPoint(centerOfMass, point);
 	return angularVelocity.crossProduct(centerOfMassToPoint);
 }
 
-Vector3D RigidBody::getVelocityOfPoint(const Point3D point) const {
+Vector3D RigidBody::getVelocityOfPoint(const Vector3D point) const {
 	return getVelocityOfPointDueToAngularVelocity(point).add(velocity);
 }
 
@@ -221,14 +221,14 @@ Vector3D RigidBody::getVelocity() {
 	return velocity;
 }
 
-double RigidBody::getRadialDistanceOfPoint(const Point3D point) {
+double RigidBody::getRadialDistanceOfPoint(const Vector3D point) {
 	double dx = centerOfMass.x - point.x;
 	double dy = centerOfMass.y - point.y;
 	double dz = centerOfMass.z - point.z;
 	return dx * dx + dy * dy + dz * dz;
 }
 
-bool RigidBody::verifyCollisionPointNotExiting(RigidBody* body, const Vector3D normalVector, const Point3D p) {
+bool RigidBody::verifyCollisionPointNotExiting(RigidBody* body, const Vector3D normalVector, const Vector3D p) {
 	Vector3D vPThisBody = getVelocityOfPoint(p);
 	Vector3D vPOtherBody = body->getVelocityOfPoint(p);
 	Vector3D vPRelative = vPThisBody.sub(vPOtherBody);

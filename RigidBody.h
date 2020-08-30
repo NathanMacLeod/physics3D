@@ -8,13 +8,13 @@
 class RigidBody {
 
 private:
-	std::vector<Point3D*> pointsToTransform;
+	std::vector<Vector3D*> pointsToTransform;
 	std::vector<ConvexHull*> hulls;
-	Point3D centerOfMass;
+	Vector3D centerOfMass;
 	Vector3D velocity;
 	Vector3D angularVelocity;
-	Point3D orientationPoint1;
-	Point3D orientationPoint2;
+	Vector3D orientationPoint1;
+	Vector3D orientationPoint2;
 	double collisionRadius;
 	double collisionRadiusSquared;
 	double mass;
@@ -36,14 +36,14 @@ public:
 	double getCollisionRadiusSquared() const;
 	Vector3D getAngularVelocity();
 	std::vector<ConvexHull*>* getHulls();
-	Point3D getCenterOfMass();
-	Vector3D getVelocityOfPointDueToAngularVelocity(const Point3D point) const;
-	Vector3D getVelocityOfPoint(const Point3D point) const;
+	Vector3D getCenterOfMass();
+	Vector3D getVelocityOfPointDueToAngularVelocity(const Vector3D point) const;
+	Vector3D getVelocityOfPoint(const Vector3D point) const;
 	Vector3D getVelocity();
-	bool verifyCollisionPointNotExiting(RigidBody* body, const Vector3D normalVector, const Point3D point);
-	void applyImpulseAtPosition(const Vector3D impulse, const Point3D position);
+	bool verifyCollisionPointNotExiting(RigidBody* body, const Vector3D normalVector, const Vector3D point);
+	void applyImpulseAtPosition(const Vector3D impulse, const Vector3D position);
 	double findInverseInertiaOfAxis(const Vector3D axis);
-	double getRadialDistanceOfPoint(const Point3D point);
+	double getRadialDistanceOfPoint(const Vector3D point);
 	double getMass() const;
 	double getInverseMass() const;
 	double getFriction() const;

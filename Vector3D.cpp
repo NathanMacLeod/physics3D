@@ -7,16 +7,16 @@ Vector3D::Vector3D(double x, double y, double z) {
 	this->z = z;
 }
 
-Vector3D::Vector3D(const Point3D p1, const Point3D p2) {
-	this->x = p2.x - p1.x;
-	this->y = p2.y - p1.y;
-	this->z = p2.z - p1.z;
-}
-
 Vector3D::Vector3D() {
 	x = 0;
 	y = 0;
 	z = 0;
+}
+
+Vector3D::Vector3D(Vector3D a, Vector3D b) {
+	x = b.x - a.x;
+	y = b.y - a.y;
+	z = b.z - a.z;
 }
 
 double Vector3D::getMagnitudeSquared() const {

@@ -3,7 +3,6 @@
 #include "Vector3D.h"
 #include <thread>
 #include <stdio.h>
-#include "Point.h"
 #include <vector>
 #include "Color.h"
 #include <list>
@@ -19,14 +18,14 @@
 
 std::vector<Polygon3D*>* createBox(double x, double y, double z, double xPos, double yPos, double zPos) {
 	std::vector<Polygon3D*>* polygons = new std::vector<Polygon3D*>();
-	Point3D* p1 = new Point3D(-x / 2.0, -y / 2.0, -z / 2.0);
-	Point3D* p2 = new Point3D(-x / 2.0, y / 2.0, -z / 2.0);
-	Point3D* p3 = new Point3D(x / 2.0, -y / 2.0, -z / 2.0);
-	Point3D* p4 = new Point3D(x / 2.0, y / 2.0, -z / 2.0);
-	Point3D* p5 = new Point3D(-x / 2.0, -y / 2.0, z / 2.0);
-	Point3D* p6 = new Point3D(-x / 2.0, y / 2.0, z / 2.0);
-	Point3D* p7 = new Point3D(x / 2.0, -y / 2.0, z / 2.0);
-	Point3D* p8 = new Point3D(x / 2.0, y / 2.0, z / 2.0);
+	Vector3D* p1 = new Vector3D(-x / 2.0, -y / 2.0, -z / 2.0);
+	Vector3D* p2 = new Vector3D(-x / 2.0, y / 2.0, -z / 2.0);
+	Vector3D* p3 = new Vector3D(x / 2.0, -y / 2.0, -z / 2.0);
+	Vector3D* p4 = new Vector3D(x / 2.0, y / 2.0, -z / 2.0);
+	Vector3D* p5 = new Vector3D(-x / 2.0, -y / 2.0, z / 2.0);
+	Vector3D* p6 = new Vector3D(-x / 2.0, y / 2.0, z / 2.0);
+	Vector3D* p7 = new Vector3D(x / 2.0, -y / 2.0, z / 2.0);
+	Vector3D* p8 = new Vector3D(x / 2.0, y / 2.0, z / 2.0);
 
 	polygons->push_back(new Polygon3D(p1, p2, p3, black, red));
 	polygons->push_back(new Polygon3D(p2, p4, p3, black, red));
@@ -47,7 +46,7 @@ std::vector<Polygon3D*>* createBox(double x, double y, double z, double xPos, do
 	polygons->push_back(new Polygon3D(p5, p3, p7, black, gray));
 
 	Vector3D translation(xPos, yPos, zPos);
-	std::vector<Point3D*> points;
+	std::vector<Vector3D*> points;
 	points.push_back(p1);
 	points.push_back(p2);
 	points.push_back(p3);
@@ -63,10 +62,10 @@ std::vector<Polygon3D*>* createBox(double x, double y, double z, double xPos, do
 std::vector<RigidSurface*>* createRigidBodyFromPolygons(std::vector<Polygon3D*>& polygons) {
 	std::vector<RigidSurface*>* surfaces = new std::vector<RigidSurface*>();
 	for (Polygon3D* polygon : polygons) {
-		Vector3D v1(*(polygon->p1), *(polygon->p2));
-		Vector3D v2(*(polygon->p1), *(polygon->p3));
+		Vector3D v1 = polygon->p2->sub(*polygon->p1);
+		Vector3D v2 = polygon->p3->sub(*polygon->p1); 
 		Vector3D normalVector = (v1.crossProduct(v2)).getUnitVector();
-		std::vector<Point3D*>* points = new std::vector<Point3D*>();
+		std::vector<Vector3D*>* points = new std::vector<Vector3D*>();
 		points->push_back(polygon->p1);
 		points->push_back(polygon->p2);
 		points->push_back(polygon->p3);
@@ -79,8 +78,8 @@ std::vector<RigidSurface*>* createRigidBodyFromPolygons(std::vector<Polygon3D*>&
 class Example : public olc::PixelGameEngine {
 
 	double queuedTime;
-	Point3D cameraPos;
-	PhysicsEngine pEngine;
+	Vector3D cameraPos;
+	PhysicsEngine pEngine = PhysicsEngine(0.02);
 	std::vector<Polygon3D*>* allPolygons;
 	double yAng = 3.14159 / 2.0;
 	double xAng = 0;
@@ -152,31 +151,31 @@ public:
 		drawLine(x3, y3, x1, y1, color);
 	}
 
-	void drawTriangle(const Point3D p1, const Point3D p2, const Point3D p3, Color color) {
+	void drawTriangle(const Vector3D p1, const Vector3D p2, const Vector3D p3, Color color) {
 		drawTriangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, color);
 	}
 
 	void fillTriangle(double x1, double y1, double x2, double y2, double x3, double y3, Color color) {
-		Point3D p1(x1, y1);
-		Point3D p2(x2, y2);
-		Point3D p3(x3, y3);
+		Vector3D p1(x1, y1, 0);
+		Vector3D p2(x2, y2, 0);
+		Vector3D p3(x3, y3, 0);
 		fillTriangle(p1, p2, p3, color);
 	}
 
-	void fillTriangle(const Point3D p1, const Point3D p2, const Point3D p3, Color color, bool useZBuffer = false) {
+	void fillTriangle(const Vector3D p1, const Vector3D p2, const Vector3D p3, Color color, bool useZBuffer = false) {
 		Vector3D normalVector;
 		double invNz = 0;
 		if (useZBuffer) {
-			Vector3D v1(p1, p2);
-			Vector3D v2(p1, p3);
+			Vector3D v1 = p2.sub(p1);
+			Vector3D v2 = p3.sub(p1);
 			normalVector = v1.crossProduct(v2);
 			invNz = 1.0 / normalVector.z;
 		}
-		const Point3D* upperPoint = &p1;
-		const Point3D* midPoint = &p2;
-		const Point3D* lowerPoint = &p3;
+		const Vector3D* upperPoint = &p1;
+		const Vector3D* midPoint = &p2;
+		const Vector3D* lowerPoint = &p3;
 
-		const Point3D* temp = nullptr;
+		const Vector3D* temp = nullptr;
 		if (upperPoint->y > midPoint->y) {
 			temp = upperPoint;
 			upperPoint = midPoint;
@@ -294,7 +293,7 @@ public:
 		}
 	}
 
-	void projectPoint(Point3D* point, float fov) {
+	void projectPoint(Vector3D* point, float fov) {
 		point->x = point->x * fov / point->z + ScreenWidth() / 2;
 		point->y = point->y * fov / point->z + ScreenHeight() / 2;
 	}
@@ -338,12 +337,12 @@ public:
 		return getColor((int) totalColor.x, (int) totalColor.y, (int) totalColor.z);
 	}
 
-	void drawPolygons(const std::vector<Polygon3D*> polygons, const Point3D cameraPosition, float orientationYAng, float orientationPitch, float fov, bool drawLines) {
+	void drawPolygons(const std::vector<Polygon3D*> polygons, const Vector3D cameraPosition, float orientationYAng, float orientationPitch, float fov, bool drawLines) {
 		clearZBuffer();
 		//copy reference to copy of polygon points
 
 		//Vector3D cameraVector(cos(orientationYAng) * cos(orientationPitch), sin(orientationPitch), sin(orientationYAng) * cos(orientationPitch));
-		std::vector<Point3D*> points;
+		std::vector<Vector3D*> points;
 		std::vector<Polygon3D*> includedPolygons;
 
 		for (Polygon3D* polygon : polygons) {
@@ -367,7 +366,7 @@ public:
 		transformation3D::rotatePointsAroundYParralelAxis(&points, -orientationYAng + 1.570795, 0, 0);
 		//pitch world so to that camera is inline with z axis
 		transformation3D::rotatePointsAroundXParralelAxis(&points, -orientationPitch, 0, 0);
-		for (Point3D* p : points) {
+		for (Vector3D* p : points) {
 			projectPoint(p, fov);
 			//drawPiczel(p->x, p->y, PICZEL, white);
 		}
@@ -393,7 +392,7 @@ public:
 		}
 	}
 
-	void draw3DLine(Point3D p1, Point3D p2, const Point3D cameraPosition, float orientationYAng, float orientationPitch, float fov) {
+	void draw3DLine(Vector3D p1, Vector3D p2, const Vector3D cameraPosition, float orientationYAng, float orientationPitch, float fov) {
 		Vector3D cameraPositionToOrigin(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
 
 		transformation3D::translatePoint(&p1, cameraPositionToOrigin);
@@ -409,7 +408,7 @@ public:
 		drawLine(p1.x, p1.y, p2.x, p2.y, green);
 	}
 
-	void draw3DPoint(Point3D p,const Point3D cameraPosition, float orientationYAng, float orientationPitch, float fov) {
+	void draw3DPoint(Vector3D p,const Vector3D cameraPosition, float orientationYAng, float orientationPitch, float fov) {
 		Vector3D cameraPositionToOrigin(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
 
 		transformation3D::translatePoint(&p, cameraPositionToOrigin);
@@ -446,20 +445,20 @@ public:
 	{
 		static double dropTime = 10000000;
 		dropTime += fElapsedTime;
-		if (dropTime > 5) {
+		if (dropTime > 500) {
 			dropTime = 0;
 			double x = 5;// 52;
 			double y = -10;
 			double z = 0;
 			std::vector<Polygon3D*>* b1polygons = createBox(1, 25, 1, x, y, z);
 
-			std::vector<Point3D*> points;
+			std::vector<Vector3D*> points;
 			for (Polygon3D* polygon : *b1polygons) {
 				allPolygons->push_back(polygon);
 				bool p1 = true;
 				bool p2 = true;
 				bool p3 = true;
-				for (Point3D* p : points) {
+				for (Vector3D* p : points) {
 					if (polygon->p1 == p)
 						p1 = false;
 					if (polygon->p2 == p)
@@ -482,13 +481,13 @@ public:
 
 			std::vector<Polygon3D*>* b2polygons = createBox(10, 10, 10, x, y - 15, z);
 
-			std::vector<Point3D*> b2points;
+			std::vector<Vector3D*> b2points;
 			for (Polygon3D* polygon : *b2polygons) {
 				//allPolygons->push_back(polygon);
 				bool p1 = true;
 				bool p2 = true;
 				bool p3 = true;
-				for (Point3D* p : points) {
+				for (Vector3D* p : points) {
 					if (polygon->p1 == p)
 						p1 = false;
 					if (polygon->p2 == p)
@@ -511,13 +510,13 @@ public:
 
 			std::vector<Polygon3D*>* b3polygons = createBox(25, 3, 25, x, y - 8, z);
 
-			std::vector<Point3D*> b3points;
+			std::vector<Vector3D*> b3points;
 			for (Polygon3D* polygon : *b3polygons) {
 				allPolygons->push_back(polygon);
 				bool p1 = true;
 				bool p2 = true;
 				bool p3 = true;
-				for (Point3D* p : points) {
+				for (Vector3D* p : points) {
 					if (polygon->p1 == p)
 						p1 = false;
 					if (polygon->p2 == p)
@@ -587,12 +586,7 @@ public:
 			cameraPos.y += dTheta * 50;
 		}
 
-		queuedTime += fElapsedTime;
-		while (queuedTime > pEngine.getTimestep()) {
-			//std::cout << "X:" << b1->getCenterOfMass()->x << " y:" << b1->getCenterOfMass()->y << " z:" << b1->getCenterOfMass()->z << "\n";
-			pEngine.iterateEngineTimestep();
-			queuedTime -= pEngine.getTimestep();
-		}
+		pEngine.iterateEngine(fElapsedTime);
 		auto t2 = std::chrono::system_clock::now();
 
 		FillRect(0, 0, ScreenWidth(), ScreenHeight(), olc::Pixel(255, 255, 255));
@@ -601,7 +595,7 @@ public:
 
 		//draw octree
 		/*std::vector<OctreeNode*> nodes;
-		OctreeNode::getAllNodes(&pEngine.root, &nodes);
+		OctreeNode::getAllNodes(&pEngine.getOctreeRoot(), &nodes);
 		for (OctreeNode* node : nodes) {
 			double s = node->getSize();
 			Point3D p = node->getPos();
@@ -620,10 +614,6 @@ public:
 			draw3DLine(Point3D(p, s, s, s), Point3D(p, s, 0, s), cameraPos, yAng, xAng, 200);
 			draw3DLine(Point3D(p, 0, s, s), Point3D(p, 0, 0, s), cameraPos, yAng, xAng, 200);
 		}*/
-
-		for (RigidBody* b : pEngine.rigidBodies) {
-			draw3DPoint(b->getCenterOfMass(), cameraPos, yAng, xAng, 200);
-		}
 
 		auto t3 = std::chrono::system_clock::now();
 

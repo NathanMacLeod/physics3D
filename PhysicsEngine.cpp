@@ -1,22 +1,28 @@
 #include "PhysicsEngine.h"
 #include <iostream>
 
-
-const double GRAV_DEFAULT =  20;
-const double TIMESTEP_DEFAULT = 0.035;
-
-PhysicsEngine::PhysicsEngine() {
-	gravity.y = GRAV_DEFAULT;
-	timestep = TIMESTEP_DEFAULT;
-	reductionVel = 35 * timestep * gravity.getMagnitude();
-	staticVel = 0.001;
-}
-
-PhysicsEngine::PhysicsEngine(double timestep, const Vector3D& gravity) {
-	this->gravity = gravity;
+PhysicsEngine::PhysicsEngine(double timestep) {
+	this->gravity = Vector3D(0, 20, 0);//default
 	this->timestep = timestep;
 	reductionVel = 2 * timestep * timestep * gravity.getMagnitudeSquared();
 	staticVel = 0.1;
+	setOctree(true);
+	fpsCap = 1;
+}
+
+void PhysicsEngine::setGravity(Vector3D gravity) {
+	this->gravity = gravity;
+}
+
+void PhysicsEngine::setOctree(bool useOctree, Vector3D octreeOrigin, double octreeSize, double octreeMinSize) {
+	this->useOctree = useOctree;
+	this->octreeOrigin = octreeOrigin.add(Vector3D(-octreeSize / 2.0, -octreeSize / 2.0, -octreeSize / 2.0));
+	this->octreeSize = octreeSize;
+	this->octreeMin = octreeMinSize;
+}
+
+OctreeNode* PhysicsEngine::getOctreeRoot() {
+	return &root;
 }
 
 void PhysicsEngine::addRigidBody(RigidBody* body) {
@@ -48,7 +54,7 @@ void PhysicsEngine::pushBodiesApart(RigidBody* collider, RigidBody* collidee, co
 	collidee->translate(cldeTransform);
 }
 
-void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Point3D colPoint, const std::vector<ConvexHull::ColPointInfo> supPoints, double restitution) {
+void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Vector3D colPoint, const std::vector<ConvexHull::ColPointInfo> supPoints, double restitution) {
 
 	Vector3D vCldrP0 = collider->getVelocityOfPoint(colPoint);
 	Vector3D vCldeP0 = collidee->getVelocityOfPoint(colPoint);
@@ -103,6 +109,177 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 	}
 }
 
+void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body2, std::vector<int>* tested) {
+	//reduce checking same body multiple times across different leafs
+	int code = (int)body1 * (int)body2;
+	bool alreadyTested = false;
+	for (int testedCode : *tested) {
+		if (testedCode == code) {
+			alreadyTested = true;
+			break;
+		}
+	}
+	if (alreadyTested) {
+		return;
+	}
+	tested->push_back(code);
+
+	if (!body1->bodiesInCollisionRange(body2)) {
+		return;
+	}
+
+	std::vector<ConvexHull::ColPointInfo> supPoints;
+	Vector3D norm;
+	Vector3D colPoint;
+	double colDepth = -1;
+	bool isFaceCollision = true;
+
+	RigidBody* collider = body2;
+	RigidBody* collidee = body1;
+
+	//find the intersection between hulls of each body with greatest penetration,
+	//and resolve that collision
+	for (ConvexHull* hullA : *body1->getHulls()) {
+		for (ConvexHull* hullB : *body2->getHulls()) {
+
+			if (!hullA->hullsInCollisionRange(hullB))
+				continue;
+
+			int winningCol = -1; //, 0 is A, 1 B, 2 E
+
+			//collision info if hullA is collidee
+			std::vector<ConvexHull::ColPointInfo> supPointsA;
+			Vector3D normA;
+			Vector3D colPointA;
+			double colDepthA;
+			bool separatingAxisA;
+
+			//collisionInfo if hullB is collidee
+			std::vector<ConvexHull::ColPointInfo> supPointsB;
+			Vector3D normB;
+			Vector3D colPointB;
+			double colDepthB;
+			bool separatingAxisB;
+
+			//collision info in case of edge on edge collision
+			Vector3D normE;
+			Vector3D colPointE;
+			double colDepthE;
+			bool separatingAxisE;
+
+			RigidBody* potCollider = body2;
+			RigidBody* potCollidee = body1;
+
+			bool aCol = hullA->SATColliderDetect(hullB, &supPointsA, &colPointA, &normA, &colDepthA, &separatingAxisA);
+			bool bCol = hullB->SATColliderDetect(hullA, &supPointsB, &colPointB, &normB, &colDepthB, &separatingAxisB);
+			bool eCol = hullA->SATEdgeCol(hullB, &colPointE, &normE, &colDepthE, &separatingAxisE);
+
+			if ((aCol || bCol || eCol) && !(separatingAxisA || separatingAxisB || separatingAxisE)) {
+				double winningDepth = 0;
+
+				if (aCol && (!bCol || (bCol && colDepthB > colDepthA))) {
+					winningCol = 0;
+					winningDepth = colDepthA;
+					if (eCol && colDepthE < colDepthA) {
+						winningCol = 2;
+						winningDepth = colDepthE;
+					}
+				}
+				else if (bCol) {
+					winningCol = 1;
+					winningDepth = colDepthB;
+					if (eCol && colDepthE < colDepthB) {
+						winningCol = 2;
+						winningDepth = colDepthE;
+					}
+				}
+				else {
+					winningCol = 2;
+					winningDepth = colDepthE;
+				}
+
+				if (colDepth == -1 || winningDepth > colDepth) {
+					switch (winningCol) {
+					case 0:
+						collider = body2;
+						collidee = body1;
+						supPoints = supPointsA;
+						norm = normA;
+						colPoint = colPointA;
+						colDepth = colDepthA;
+						isFaceCollision = true;
+						break;
+					case 1:
+						collider = body1;
+						collidee = body2;
+						supPoints = supPointsB;
+						norm = normB;
+						colPoint = colPointB;
+						colDepth = colDepthB;
+						isFaceCollision = true;
+						break;
+					case 2:
+						norm = normE;
+						colPoint = colPointE;
+						colDepth = colDepthE;
+						isFaceCollision = false;
+						break;
+					}
+				}
+			}
+		}
+	}
+	if (colDepth != -1) {
+
+		bool contactColl = false;
+
+		if (isFaceCollision) {
+
+			contactColl = true;
+			Vector3D average(0, 0, 0);
+			double depth = 0;
+			for (ConvexHull::ColPointInfo supPoint : supPoints) {
+				average.x += supPoint.point.x;
+				average.y += supPoint.point.y;
+				average.z += supPoint.point.z;
+				depth += supPoint.penDepth;
+			}
+			average.x /= supPoints.size();
+			average.y /= supPoints.size();
+			average.z /= supPoints.size();
+			depth /= supPoints.size();
+
+			if (collider->verifyCollisionPointNotExiting(collidee, norm, average)) {
+				Vector3D vCldrP0 = collider->getVelocityOfPoint(colPoint);
+				Vector3D vCldeP0 = collidee->getVelocityOfPoint(colPoint);
+				Vector3D velRel = vCldeP0.sub(vCldrP0);
+				double normVel = norm.dotProduct(velRel);
+				resolveImpulses(collider, collidee, norm, average, supPoints, (normVel < gravity.getMagnitude() / (2.25)) ? 0 : collidee->getRestitution());
+			}
+
+		}
+		else if (!collidee->verifyCollisionPointNotExiting(collider, norm, colPoint)) {
+			resolveImpulses(collider, collidee, norm, colPoint, supPoints, collidee->getRestitution());
+		}
+
+		pushBodiesApart(collider, collidee, norm, (contactColl) ? 0.15 * colDepth : colDepth);
+
+	}
+}
+
+void PhysicsEngine::iterateEngine(double secondsPassed) {
+	static double timeBuff = 0;
+	timeBuff += secondsPassed;
+	double max = (timestep > 1.0 / fpsCap) ? timestep : fpsCap;
+	if (timeBuff > max) { //max timebuff to avoid getting too slogged down
+		timeBuff = max;
+	}
+	while (timeBuff >= timestep) {
+		timeBuff -= timestep;
+		iterateEngineTimestep();
+	}
+}
+
 void PhysicsEngine::iterateEngineTimestep() {
 	Vector3D gravityAcceleration(gravity.x * timestep, gravity.y * timestep, gravity.z * timestep);
 	for (RigidBody* body : rigidBodies) {
@@ -110,184 +287,38 @@ void PhysicsEngine::iterateEngineTimestep() {
 		body->moveInTime(timestep);
 	}
 
-	//octree stuff
-	double octreeSize = 150;
-	double octreeMin = 25;
-	Point3D pos(-octreeSize / 2.0, -octreeSize / 2.0, -octreeSize / 2.0);
-	root = OctreeNode(pos, octreeSize, octreeMin);
-	for (RigidBody* b : rigidBodies) {
-		root.addBody(b);
-	}
-	root.expandNode();
-
-	std::vector<OctreeNode*> octreeLeafs;
-	OctreeNode::getCollisionLeafs(&root, &octreeLeafs);
-
 	std::vector<int> tested;
-	
-	for (OctreeNode* leaf : octreeLeafs) {
-		for (int i = 0; i < leaf->getBodies()->size(); i++) {
-			for (int j = i + 1; j < leaf->getBodies()->size(); j++) {
-				RigidBody* body1 = leaf->getBodies()->at(i);
-				RigidBody* body2 = leaf->getBodies()->at(j);
 
-				//reduce checking same body multiple times across different leafs
-				int code = (int)body1 * (int)body2;
-				bool alreadyTested = false;
-				for (int testedCode : tested) {
-					if (testedCode == code) {
-						alreadyTested = true;
-						break;
-					}
+	if (useOctree) {
+
+		root = OctreeNode(octreeOrigin, octreeSize, octreeMin);
+		for (RigidBody* b : rigidBodies) {
+			root.addBody(b);
+		}
+		root.expandNode();
+		std::vector<OctreeNode*> octreeLeafs;
+		OctreeNode::getCollisionLeafs(&root, &octreeLeafs);
+
+		for (OctreeNode* leaf : octreeLeafs) {
+			for (int i = 0; i < leaf->getBodies()->size(); i++) {
+				for (int j = i + 1; j < leaf->getBodies()->size(); j++) {
+					RigidBody* body1 = leaf->getBodies()->at(i);
+					RigidBody* body2 = leaf->getBodies()->at(j);
+
+					detectAndResolveCollisions(body1, body2, &tested);
 				}
-				if (alreadyTested) {
-					continue;
-				}
-				tested.push_back(code);
-
-				if (!body1->bodiesInCollisionRange(body2))
-					continue;
-
-				std::vector<ConvexHull::ColPointInfo> supPoints;
-				Vector3D norm;
-				Point3D colPoint;
-				double colDepth = -1;
-				bool isFaceCollision = true;
-
-				RigidBody* collider = body2;
-				RigidBody* collidee = body1;
-
-				//find the intersection between hulls of each body with greatest penetration,
-				//and resolve that collision
-				for (ConvexHull* hullA : *body1->getHulls()) {
-					for (ConvexHull* hullB : *body2->getHulls()) {
-
-						if (!hullA->hullsInCollisionRange(hullB))
-							continue;
-
-						int winningCol = -1; //, 0 is A, 1 B, 2 E
-
-						//collision info if hullA is collidee
-						std::vector<ConvexHull::ColPointInfo> supPointsA;
-						Vector3D normA;
-						Point3D colPointA;
-						double colDepthA;
-						bool separatingAxisA;
-
-						//collisionInfo if hullB is collidee
-						std::vector<ConvexHull::ColPointInfo> supPointsB;
-						Vector3D normB;
-						Point3D colPointB;
-						double colDepthB;
-						bool separatingAxisB;
-
-						//collision info in case of edge on edge collision
-						Vector3D normE;
-						Point3D colPointE;
-						double colDepthE;
-						bool separatingAxisE;
-
-						RigidBody* potCollider = body2;
-						RigidBody* potCollidee = body1;
-
-						bool aCol = hullA->SATColliderDetect(hullB, &supPointsA, &colPointA, &normA, &colDepthA, &separatingAxisA);
-						bool bCol = hullB->SATColliderDetect(hullA, &supPointsB, &colPointB, &normB, &colDepthB, &separatingAxisB);
-						bool eCol = hullA->SATEdgeCol(hullB, &colPointE, &normE, &colDepthE, &separatingAxisE);
-
-						if ((aCol || bCol || eCol) && !(separatingAxisA || separatingAxisB || separatingAxisE)) {
-							double winningDepth = 0;
-
-							if (aCol && (!bCol || (bCol && colDepthB > colDepthA))) {
-								winningCol = 0;
-								winningDepth = colDepthA;
-								if (eCol && colDepthE < colDepthA) {
-									winningCol = 2;
-									winningDepth = colDepthE;
-								}
-							}
-							else if (bCol) {
-								winningCol = 1;
-								winningDepth = colDepthB;
-								if (eCol && colDepthE < colDepthB) {
-									winningCol = 2;
-									winningDepth = colDepthE;
-								}
-							}
-							else {
-								winningCol = 2;
-								winningDepth = colDepthE;
-							}
-
-							if (colDepth == -1 || winningDepth > colDepth) {
-								switch (winningCol) {
-								case 0:
-									collider = body2;
-									collidee = body1;
-									supPoints = supPointsA;
-									norm = normA;
-									colPoint = colPointA;
-									colDepth = colDepthA;
-									isFaceCollision = true;
-									break;
-								case 1:
-									collider = body1;
-									collidee = body2;
-									supPoints = supPointsB;
-									norm = normB;
-									colPoint = colPointB;
-									colDepth = colDepthB;
-									isFaceCollision = true;
-									break;
-								case 2:
-									norm = normE;
-									colPoint = colPointE;
-									colDepth = colDepthE;
-									isFaceCollision = false;
-									break;
-								}
-							}
-						}
-					}
-				}
-				if (colDepth != -1) {
-
-					bool contactColl = false;
-
-					if (isFaceCollision) {
-
-						contactColl = true;
-						Point3D average(0, 0, 0);
-						double depth = 0;
-						for (ConvexHull::ColPointInfo supPoint : supPoints) {
-							average.x += supPoint.point.x;
-							average.y += supPoint.point.y;
-							average.z += supPoint.point.z;
-							depth += supPoint.penDepth;
-						}
-						average.x /= supPoints.size();
-						average.y /= supPoints.size();
-						average.z /= supPoints.size();
-						depth /= supPoints.size();
-
-						if (collider->verifyCollisionPointNotExiting(collidee, norm, average)) {
-							Vector3D vCldrP0 = collider->getVelocityOfPoint(colPoint);
-							Vector3D vCldeP0 = collidee->getVelocityOfPoint(colPoint);
-							Vector3D velRel = vCldeP0.sub(vCldrP0);
-							double normVel = norm.dotProduct(velRel);
-							resolveImpulses(collider, collidee, norm, average, supPoints, (normVel < gravity.getMagnitude() / (2.25)) ? 0 : collidee->getRestitution());
-						}
-
-					}
-					else if (!collidee->verifyCollisionPointNotExiting(collider, norm, colPoint)) {
-						resolveImpulses(collider, collidee, norm, colPoint, supPoints, collidee->getRestitution());
-					}
-
-					pushBodiesApart(collider, collidee, norm, (contactColl) ? 0.15 * colDepth : colDepth);
-
-				}
-
 			}
+		}
+	}
+	else {
 
+		for (int i = 0; i < rigidBodies.size(); i++) {
+			for (int j = i + 1; j < rigidBodies.size(); j++) {
+				RigidBody* body1 = rigidBodies.at(i);
+				RigidBody* body2 = rigidBodies.at(j);
+
+				detectAndResolveCollisions(body1, body2, &tested);
+			}
 		}
 	}
 }

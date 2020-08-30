@@ -6,7 +6,7 @@ class OctreeNode {
 private:
 	static const int N_CHILD = 8;
 
-	Point3D pos;
+	Vector3D pos;
 	double size;
 	double minSize;
 	bool leafNode;
@@ -16,9 +16,9 @@ private:
 public:
 	~OctreeNode();
 	OctreeNode();
-	OctreeNode(Point3D pos, double size, double minSize);
+	OctreeNode(Vector3D pos, double size, double minSize);
 	double getSize();
-	Point3D getPos();
+	Vector3D getPos();
 	void expandNode();
 	void addBody(RigidBody* b);
 	bool isLeafNode();

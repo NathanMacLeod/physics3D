@@ -3,32 +3,31 @@
 #define TRANSFORMATION3D_H
 
 #include <vector>
-#include "Point.h"
 #include "Vector3D.h"
 #include <iostream>
 
 class transformation3D {
 public:
-	static void translatePoints(std::vector<Point3D*>* points, const Vector3D translation) {
+	static void translatePoints(std::vector<Vector3D*>* points, const Vector3D translation) {
 		translatePoints(points, translation.x, translation.y, translation.z);
 	}
-	static void translatePoint(Point3D* p, const Vector3D translation) {
+	static void translatePoint(Vector3D* p, const Vector3D translation) {
 		translatePoint(p, translation.x, translation.y, translation.z);
 	}
 
-	static void translatePoint(Point3D* p, double x, double y, double z) {
+	static void translatePoint(Vector3D* p, double x, double y, double z) {
 		p->x += x;
 		p->y += y;
 		p->z += z;
 	}
 
-	static void translatePoints(std::vector<Point3D*>* points, double x, double y, double z) {
-		for (Point3D* p : *points) {
+	static void translatePoints(std::vector<Vector3D*>* points, double x, double y, double z) {
+		for (Vector3D* p : *points) {
 			translatePoint(p, x, y, z);
 		}
 	}
 
-	static void rotatePointAroundZParallelAxis(Point3D* p, double theta, double xCoord, double yCoord, double cosTheta = -1, double sinTheta = -1) {
+	static void rotatePointAroundZParallelAxis(Vector3D* p, double theta, double xCoord, double yCoord, double cosTheta = -1, double sinTheta = -1) {
 		if (cosTheta == sinTheta) {
 			cosTheta = cos(theta);
 			sinTheta = sin(theta);
@@ -42,17 +41,17 @@ public:
 		
 	}
 
-	static void rotatePointsAroundZParallelAxis(std::vector<Point3D*>* points, double theta, double xCoord, double yCoord, double cosTheta=-1, double sinTheta=-1) {
+	static void rotatePointsAroundZParallelAxis(std::vector<Vector3D*>* points, double theta, double xCoord, double yCoord, double cosTheta=-1, double sinTheta=-1) {
 		if (cosTheta == sinTheta) {
 			cosTheta = cos(theta);
 			sinTheta = sin(theta);
 		}
-		for (Point3D* p : *points) {
+		for (Vector3D* p : *points) {
 			rotatePointAroundZParallelAxis(p, theta, xCoord, yCoord, cosTheta, sinTheta);
 		}
 	}
 
-	static void rotatePointAroundXParralelAxis(Point3D* p, double theta, double yCoord, double zCoord, double cosTheta = -1, double sinTheta = -1) {
+	static void rotatePointAroundXParralelAxis(Vector3D* p, double theta, double yCoord, double zCoord, double cosTheta = -1, double sinTheta = -1) {
 		if (cosTheta == sinTheta) {
 			cosTheta = cos(theta);
 			sinTheta = sin(theta);
@@ -65,17 +64,17 @@ public:
 		p->z = zCoord + relativeY * sinTheta + relativeZ * cosTheta;
 	}
 
-	static void rotatePointsAroundXParralelAxis(std::vector<Point3D*>* points, double theta, double yCoord, double zCoord, double cosTheta = -1, double sinTheta = -1) {
+	static void rotatePointsAroundXParralelAxis(std::vector<Vector3D*>* points, double theta, double yCoord, double zCoord, double cosTheta = -1, double sinTheta = -1) {
 		if(cosTheta == sinTheta) {
 			cosTheta = cos(theta);
 			sinTheta = sin(theta);
 		}
-		for (Point3D* p : *points) {
+		for (Vector3D* p : *points) {
 			rotatePointAroundXParralelAxis(p, theta, yCoord, zCoord, cosTheta, sinTheta);
 		}
 	}
 
-	static void rotatePointAroundYParralelAxis(Point3D* p, double theta, double xCoord, double zCoord, double cosTheta = -1, double sinTheta = -1) {
+	static void rotatePointAroundYParralelAxis(Vector3D* p, double theta, double xCoord, double zCoord, double cosTheta = -1, double sinTheta = -1) {
 		if (cosTheta == sinTheta) {
 			cosTheta = cos(theta);
 			sinTheta = sin(theta);
@@ -88,17 +87,17 @@ public:
 		p->z = zCoord - relativeX * sinTheta + relativeZ * cosTheta;
 	}
 
-	static void rotatePointsAroundYParralelAxis(std::vector<Point3D*>* points, double theta, double xCoord, double zCoord, double cosTheta=-1, double sinTheta=-1) {
+	static void rotatePointsAroundYParralelAxis(std::vector<Vector3D*>* points, double theta, double xCoord, double zCoord, double cosTheta=-1, double sinTheta=-1) {
 		if (cosTheta == sinTheta) {
 			cosTheta = cos(theta);
 			sinTheta = sin(theta);
 		}
-		for (Point3D* p : *points) {
+		for (Vector3D* p : *points) {
 			rotatePointAroundYParralelAxis(p, theta, xCoord, zCoord, cosTheta, sinTheta);
 		}
 	}
 
-	static void rotatePointAroundArbitraryAxis(Point3D* p, Point3D* output, const Vector3D axisUnitVector, double xPos, double yPos, double zPos, double theta, double cosTheta=-1, double sinTheta=-1) {
+	static void rotatePointAroundArbitraryAxis(Vector3D* p, Vector3D* output, const Vector3D axisUnitVector, double xPos, double yPos, double zPos, double theta, double cosTheta=-1, double sinTheta=-1) {
 		if (cosTheta == sinTheta) {
 			cosTheta = cos(theta);
 			sinTheta = sin(theta);
@@ -121,13 +120,13 @@ public:
 		output->z = newPointVector.z + zPos;
 	}
 
-	static void rotatePointsAroundArbitraryAxis(std::vector<Point3D*>* points, const Vector3D axisUnitVector, double xPos, double yPos, double zPos, double theta, double cosTheta=-1, double sinTheta=-1) {
+	static void rotatePointsAroundArbitraryAxis(std::vector<Vector3D*>* points, const Vector3D axisUnitVector, double xPos, double yPos, double zPos, double theta, double cosTheta=-1, double sinTheta=-1) {
 		//axis vector should be unit length
 		if (cosTheta == sinTheta) {
 			cosTheta = cos(theta);
 			sinTheta = sin(theta);
 		}
-		for (Point3D* p : *points) {
+		for (Vector3D* p : *points) {
 			rotatePointAroundArbitraryAxis(p, p, axisUnitVector, xPos, yPos, zPos, theta, cosTheta, sinTheta);
 		}
 	}
