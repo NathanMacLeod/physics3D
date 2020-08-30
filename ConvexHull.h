@@ -7,7 +7,6 @@
 class ConvexHull {
 
 public:
-	ConvexHull(const std::vector<RigidSurface*>& surfaces, double density);
 
 	class ColPointInfo {
 	public:
@@ -41,12 +40,15 @@ private:
 	void findColPointsEdges();
 	void findMaxMin(Vector3D n, double* max, double* min, Point3D* maxP, Point3D* minP);
 public:
+	ConvexHull(const std::vector<RigidSurface*>& surfaces, double density);
+	~ConvexHull();
+
 	Point3D getCenterOfMass();
 	std::vector<Point3D*>* getColPoints();
 	double getCollisionRadius();
 	double* getInertia();
 	double getMass();
-	bool hullsInCollisionRange(ConvexHull& hull);
+	bool hullsInCollisionRange(ConvexHull* hull);
 	bool SATColliderDetect(ConvexHull* potCollider, std::vector<ColPointInfo>* colSupPoints, Point3D* colPoint, Vector3D* nVect, double* colDepth, bool* separatingAxis);
 	bool SATEdgeCol(ConvexHull* b, Point3D* collisionPoint, Vector3D* normal, double* colDepth, bool* separatingAxis);
 	bool getPointInsideBody(const Point3D point);

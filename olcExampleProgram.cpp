@@ -7,6 +7,7 @@
 #include <vector>
 #include "Color.h"
 #include <list>
+#include <chrono>
 #include "Polygon3D.h"
 #include "transformation3D.h"
 #include "PhysicsEngine.h"
@@ -405,18 +406,29 @@ public:
 		transformation3D::rotatePointAroundXParralelAxis(&p2, -orientationPitch, 0, 0);
 		projectPoint(&p2, fov);
 
-		//drawLine(p1.x, p1.y, p2.x, p2.y, red);
+		drawLine(p1.x, p1.y, p2.x, p2.y, green);
+	}
+
+	void draw3DPoint(Point3D p,const Point3D cameraPosition, float orientationYAng, float orientationPitch, float fov) {
+		Vector3D cameraPositionToOrigin(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
+
+		transformation3D::translatePoint(&p, cameraPositionToOrigin);
+		transformation3D::rotatePointAroundYParralelAxis(&p, -orientationYAng + 1.570795, 0, 0);
+		transformation3D::rotatePointAroundXParralelAxis(&p, -orientationPitch, 0, 0);
+		projectPoint(&p, fov);
+
+		drawPiczel((int)p.x, (int)p.y, red);
 	}
 
 	bool OnUserCreate() override
 	{
 		zBuffer = new double[ScreenWidth() * ScreenHeight()];
 		allPolygons = new std::vector<Polygon3D*>();
-		cameraPos.z = -10;
+		cameraPos.z = -150;
 		//cameraPos.y = 27.5;
 		//cameraPos.x = 52;
 
-		std::vector<Polygon3D*>* b2polygons = createBox(100, 5, 100, 0, 30, 100);
+		std::vector<Polygon3D*>* b2polygons = createBox(100, 5, 100, 0, 35, 0);
 		std::vector<ConvexHull*>* hulls = new std::vector<ConvexHull*>();
 		hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b2polygons), 1));
 		RigidBody* b2 = new RigidBody(*hulls, 1, 1, 0.3, true);
@@ -432,14 +444,14 @@ public:
 
 	bool OnUserUpdate(float fElapsedTime) override
 	{
-		static double dropTime = 0;
+		static double dropTime = 10000000;
 		dropTime += fElapsedTime;
 		if (dropTime > 5) {
 			dropTime = 0;
 			double x = 5;// 52;
-			double y = -20;
-			double z = 100;
-			std::vector<Polygon3D*>* b1polygons = createBox(3, 25, 3, x, y, z);
+			double y = -10;
+			double z = 0;
+			std::vector<Polygon3D*>* b1polygons = createBox(1, 25, 1, x, y, z);
 
 			std::vector<Point3D*> points;
 			for (Polygon3D* polygon : *b1polygons) {
@@ -472,7 +484,7 @@ public:
 
 			std::vector<Point3D*> b2points;
 			for (Polygon3D* polygon : *b2polygons) {
-				allPolygons->push_back(polygon);
+				//allPolygons->push_back(polygon);
 				bool p1 = true;
 				bool p2 = true;
 				bool p3 = true;
@@ -497,11 +509,11 @@ public:
 			//Vector3D axis2(0, 0, 1);
 			//axis2 = axis2.getUnitVector();
 
-			std::vector<Polygon3D*>* b3polygons = createBox(10, 10, 10, x, y + 15, z);
+			std::vector<Polygon3D*>* b3polygons = createBox(25, 3, 25, x, y - 8, z);
 
 			std::vector<Point3D*> b3points;
 			for (Polygon3D* polygon : *b3polygons) {
-				//allPolygons->push_back(polygon);
+				allPolygons->push_back(polygon);
 				bool p1 = true;
 				bool p2 = true;
 				bool p3 = true;
@@ -528,13 +540,51 @@ public:
 			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis2, x, y, z, -3.14159 / 3);
 			std::vector<ConvexHull*>* hulls = new std::vector<ConvexHull*>();
 			hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b1polygons), 1));
-			hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b2polygons), 1));
-			//hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b3polygons), 1));
+			//hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b2polygons), 1));
+			hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b3polygons), 1));
 			RigidBody* b1 = new RigidBody(*hulls, 1, 1, 0.3, false);
 			pEngine.addRigidBody(b1);
 			delete b1polygons;
 			delete b2polygons;
 			delete b3polygons;
+		}
+
+		auto t1 = std::chrono::system_clock::now();
+		
+		float dTheta = fElapsedTime;
+		if (GetKey(olc::Key::W).bHeld) {
+			cameraPos.z += dTheta * 50 * sin(yAng);
+			cameraPos.x -= dTheta * 50 * cos(yAng);
+		}
+		if (GetKey(olc::Key::S).bHeld) {
+			cameraPos.z -= dTheta * 50 * sin(yAng);
+			cameraPos.x += dTheta * 50 * cos(yAng);
+		}
+		if (GetKey(olc::Key::D).bHeld) {
+			cameraPos.x += dTheta * 50 * sin(yAng);
+			cameraPos.z += dTheta * 50 * cos(yAng);
+		}
+		if (GetKey(olc::Key::A).bHeld) {
+			cameraPos.x -= dTheta * 50 * sin(yAng);
+			cameraPos.z -= dTheta * 50 * cos(yAng);
+		}
+		if (GetKey(olc::Key::LEFT).bHeld) {
+			yAng -= dTheta / 3;
+		}
+		if (GetKey(olc::Key::RIGHT).bHeld) {
+			yAng += dTheta / 3;
+		}
+		if (GetKey(olc::Key::UP).bHeld) {
+			xAng += dTheta / 3;
+		}
+		if (GetKey(olc::Key::DOWN).bHeld) {
+			xAng -= dTheta / 3;
+		}
+		if (GetKey(olc::Key::SPACE).bHeld) {
+			cameraPos.y -= dTheta * 50;
+		}
+		if (GetKey(olc::Key::CTRL).bHeld) {
+			cameraPos.y += dTheta * 50;
 		}
 
 		queuedTime += fElapsedTime;
@@ -543,10 +593,44 @@ public:
 			pEngine.iterateEngineTimestep();
 			queuedTime -= pEngine.getTimestep();
 		}
+		auto t2 = std::chrono::system_clock::now();
+
 		FillRect(0, 0, ScreenWidth(), ScreenHeight(), olc::Pixel(255, 255, 255));
 		clearZBuffer();
 		drawPolygons(*allPolygons, cameraPos, yAng, xAng, 200, false);
-		
+
+		//draw octree
+		/*std::vector<OctreeNode*> nodes;
+		OctreeNode::getAllNodes(&pEngine.root, &nodes);
+		for (OctreeNode* node : nodes) {
+			double s = node->getSize();
+			Point3D p = node->getPos();
+			draw3DLine(Point3D(p, 0, 0, 0), Point3D(p, s, 0, 0), cameraPos, yAng, xAng, 200);
+			draw3DLine(Point3D(p, s, 0, 0), Point3D(p, s, 0, s), cameraPos, yAng, xAng, 200);
+			draw3DLine(Point3D(p, s, 0, s), Point3D(p, 0, 0, s), cameraPos, yAng, xAng, 200);
+			draw3DLine(Point3D(p, 0, 0, s), Point3D(p, 0, 0, 0), cameraPos, yAng, xAng, 200);
+
+			draw3DLine(Point3D(p, 0, s, 0), Point3D(p, s, s, 0), cameraPos, yAng, xAng, 200);
+			draw3DLine(Point3D(p, s, s, 0), Point3D(p, s, s, s), cameraPos, yAng, xAng, 200);
+			draw3DLine(Point3D(p, s, s, s), Point3D(p, 0, s, s), cameraPos, yAng, xAng, 200);
+			draw3DLine(Point3D(p, 0, s, s), Point3D(p, 0, s, 0), cameraPos, yAng, xAng, 200);
+
+			draw3DLine(Point3D(p, 0, s, 0), Point3D(p, 0, 0, 0), cameraPos, yAng, xAng, 200);
+			draw3DLine(Point3D(p, s, s, 0), Point3D(p, s, 0, 0), cameraPos, yAng, xAng, 200);
+			draw3DLine(Point3D(p, s, s, s), Point3D(p, s, 0, s), cameraPos, yAng, xAng, 200);
+			draw3DLine(Point3D(p, 0, s, s), Point3D(p, 0, 0, s), cameraPos, yAng, xAng, 200);
+		}*/
+
+		for (RigidBody* b : pEngine.rigidBodies) {
+			draw3DPoint(b->getCenterOfMass(), cameraPos, yAng, xAng, 200);
+		}
+
+		auto t3 = std::chrono::system_clock::now();
+
+		std::chrono::duration<float> physTime = t2 - t1;
+		std::chrono::duration<float> renderTime = t3 - t2;
+
+		//printf("renderTime: %f, physicsTime: %f\n", renderTime.count(), physTime.count());
 		return true;
 	}
 };

@@ -19,6 +19,12 @@ public:
 		this->y = y;
 		this->z = z;
 	}
+
+	Point3D(Point3D o, double x, double y, double z) {
+		this->x = o.x + x;
+		this->y = o.y + y;
+		this->z = o.z + z;
+	}
 };
 
 #endif

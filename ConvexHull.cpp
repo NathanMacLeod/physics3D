@@ -9,6 +9,18 @@ ConvexHull::ConvexHull(const std::vector<RigidSurface*>& surfaces, double densit
 
 }
 
+ConvexHull::~ConvexHull() {
+	for (RigidSurface* s : surfaces) {
+		delete s;
+	}
+	for (Point3D* p : colPoints) {
+		delete p;
+	}
+	for (Edge* e : colEdges) {
+		delete e;
+	}
+}
+
 ConvexHull::Edge::Edge(Point3D* p1, Point3D* p2) {
 	this->p1 = p1;
 	this->p2 = p2;
@@ -306,13 +318,13 @@ double ConvexHull::getCollisionRadius() {
 	return collisionRadius;
 }
 
-bool ConvexHull::hullsInCollisionRange(ConvexHull& hull) {
-	double xDist = centerOfMass.x - hull.centerOfMass.x;
-	double yDist = centerOfMass.y - hull.centerOfMass.y;
-	double zDist = centerOfMass.z - hull.centerOfMass.z;
+bool ConvexHull::hullsInCollisionRange(ConvexHull* hull) {
+	double xDist = centerOfMass.x - hull->centerOfMass.x;
+	double yDist = centerOfMass.y - hull->centerOfMass.y;
+	double zDist = centerOfMass.z - hull->centerOfMass.z;
 
 	double sqrDist = xDist * xDist + yDist * yDist + zDist * zDist;
-	double colDist = (collisionRadius + hull.getCollisionRadius()) * (collisionRadius + hull.getCollisionRadius());
+	double colDist = (collisionRadius + hull->getCollisionRadius()) * (collisionRadius + hull->getCollisionRadius());
 	return sqrDist <= colDist;
 }
 

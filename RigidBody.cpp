@@ -19,7 +19,7 @@ RigidBody::RigidBody(const std::vector<ConvexHull*>& hulls, double density, doub
 	findCollisionRadius();
 	
 	if (!fixed)
-		angularVelocity = Vector3D(0, 0, 0.1);
+		angularVelocity = Vector3D(0, 9, 0.2);
 
 	orientationPoint1 = Point3D(centerOfMass.x, centerOfMass.y - 1, centerOfMass.z);
 	orientationPoint2 = Point3D(centerOfMass.x + 1, centerOfMass.y, centerOfMass.z);
@@ -27,6 +27,12 @@ RigidBody::RigidBody(const std::vector<ConvexHull*>& hulls, double density, doub
 	pointsToTransform.push_back(&orientationPoint1);
 	pointsToTransform.push_back(&orientationPoint2);
 	pointsToTransform.push_back(&centerOfMass);
+}
+
+RigidBody::~RigidBody() {
+	for (ConvexHull* h : hulls) {
+		delete h;
+	}
 }
 
 std::vector<ConvexHull*>* RigidBody::getHulls() {
@@ -192,13 +198,13 @@ Point3D RigidBody::getCenterOfMass() {
 	return centerOfMass;
 }
 
-bool RigidBody::bodiesInCollisionRange(RigidBody& body) {
-	double xDist = centerOfMass.x - body.getCenterOfMass().x;
-	double yDist = centerOfMass.y - body.getCenterOfMass().y;
-	double zDist = centerOfMass.z - body.getCenterOfMass().z;
+bool RigidBody::bodiesInCollisionRange(RigidBody* body) {
+	double xDist = centerOfMass.x - body->getCenterOfMass().x;
+	double yDist = centerOfMass.y - body->getCenterOfMass().y;
+	double zDist = centerOfMass.z - body->getCenterOfMass().z;
 
 	double sqrDist = xDist * xDist + yDist * yDist + zDist * zDist;
-	double colDist = (collisionRadius + body.getCollisionRadius()) * (collisionRadius + body.getCollisionRadius());
+	double colDist = (collisionRadius + body->getCollisionRadius()) * (collisionRadius + body->getCollisionRadius());
 	return sqrDist <= colDist;
 }
 
@@ -222,9 +228,9 @@ double RigidBody::getRadialDistanceOfPoint(const Point3D point) {
 	return dx * dx + dy * dy + dz * dz;
 }
 
-bool RigidBody::verifyCollisionPointNotExiting(const RigidBody body, const Vector3D normalVector, const Point3D p) {
+bool RigidBody::verifyCollisionPointNotExiting(RigidBody* body, const Vector3D normalVector, const Point3D p) {
 	Vector3D vPThisBody = getVelocityOfPoint(p);
-	Vector3D vPOtherBody = body.getVelocityOfPoint(p);
+	Vector3D vPOtherBody = body->getVelocityOfPoint(p);
 	Vector3D vPRelative = vPThisBody.sub(vPOtherBody);
 	return vPRelative.dotProduct(normalVector) < 0;
 }
