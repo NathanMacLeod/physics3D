@@ -270,10 +270,6 @@ void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body
 void PhysicsEngine::iterateEngine(double secondsPassed) {
 	static double timeBuff = 0;
 	timeBuff += secondsPassed;
-	double max = (timestep > 1.0 / fpsCap) ? timestep : fpsCap;
-	if (timeBuff > max) { //max timebuff to avoid getting too slogged down
-		timeBuff = max;
-	}
 	while (timeBuff >= timestep) {
 		timeBuff -= timestep;
 		iterateEngineTimestep();
@@ -291,7 +287,7 @@ void PhysicsEngine::iterateEngineTimestep() {
 
 	if (useOctree) {
 
-		root = OctreeNode(octreeOrigin, octreeSize, octreeMin);
+		OctreeNode root = OctreeNode(octreeOrigin, octreeSize, octreeMin);
 		for (RigidBody* b : rigidBodies) {
 			root.addBody(b);
 		}

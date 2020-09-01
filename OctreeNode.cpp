@@ -7,7 +7,9 @@ OctreeNode::OctreeNode(Vector3D pos, double size, double minSize) {
 }
 
 OctreeNode::OctreeNode() {
-	
+	for (int i = 0; i < N_CHILD; i++) {
+		children[i] = nullptr;
+	}
 }
 
 OctreeNode::~OctreeNode() {

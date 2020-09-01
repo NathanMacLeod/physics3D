@@ -4,7 +4,6 @@
 #include <thread>
 #include <stdio.h>
 #include <vector>
-#include "Color.h"
 #include <list>
 #include <chrono>
 #include "Polygon3D.h"
@@ -27,23 +26,23 @@ std::vector<Polygon3D*>* createBox(double x, double y, double z, double xPos, do
 	Vector3D* p7 = new Vector3D(x / 2.0, -y / 2.0, z / 2.0);
 	Vector3D* p8 = new Vector3D(x / 2.0, y / 2.0, z / 2.0);
 
-	polygons->push_back(new Polygon3D(p1, p2, p3, black, red));
-	polygons->push_back(new Polygon3D(p2, p4, p3, black, red));
+	polygons->push_back(new Polygon3D(p1, p2, p3, olc::BLACK, olc::BLACK));
+	polygons->push_back(new Polygon3D(p2, p4, p3, olc::BLACK, olc::BLACK));
 
-	polygons->push_back(new Polygon3D(p5, p7, p6, black, orange));
-	polygons->push_back(new Polygon3D(p6, p7, p8, black, orange));
+	polygons->push_back(new Polygon3D(p5, p7, p6, olc::BLACK, olc::BLACK));
+	polygons->push_back(new Polygon3D(p6, p7, p8, olc::BLACK, olc::BLACK));
 
-	polygons->push_back(new Polygon3D(p3, p4, p7, black, green));
-	polygons->push_back(new Polygon3D(p7, p4, p8, black, green));
+	polygons->push_back(new Polygon3D(p3, p4, p7, olc::BLACK, olc::BLACK));
+	polygons->push_back(new Polygon3D(p7, p4, p8, olc::BLACK, olc::BLACK));
 
-	polygons->push_back(new Polygon3D(p1, p5, p2, black, blue));
-	polygons->push_back(new Polygon3D(p5, p6, p2, black, blue));
+	polygons->push_back(new Polygon3D(p1, p5, p2, olc::BLACK, olc::BLACK));
+	polygons->push_back(new Polygon3D(p5, p6, p2, olc::BLACK, olc::BLACK));
 
-	polygons->push_back(new Polygon3D(p2, p6, p4, black, light_gray));
-	polygons->push_back(new Polygon3D(p6, p8, p4, black, light_gray));
+	polygons->push_back(new Polygon3D(p2, p6, p4, olc::BLACK, olc::BLACK));
+	polygons->push_back(new Polygon3D(p6, p8, p4, olc::BLACK, olc::BLACK));
 
-	polygons->push_back(new Polygon3D(p1, p3, p5, black, gray));
-	polygons->push_back(new Polygon3D(p5, p3, p7, black, gray));
+	polygons->push_back(new Polygon3D(p1, p3, p5, olc::BLACK, olc::BLACK));
+	polygons->push_back(new Polygon3D(p5, p3, p7, olc::BLACK, olc::BLACK));
 
 	Vector3D translation(xPos, yPos, zPos);
 	std::vector<Vector3D*> points;
@@ -103,12 +102,16 @@ public:
 	~Example() {
 		delete zBuffer;
 	}
-
-	void drawPiczel(int x, int y, Color color) {
-		Draw(x, y, olc::Pixel(getR(color), getG(color), getB(color)));
+	
+	void drawPixel3D(int x, int y, double z, olc::Pixel color) {
+		int indx = getPixelIndex(x, y);
+		if (zBuffer[indx] > 0 && zBuffer[indx] <= z)
+			return;
+		zBuffer[indx] = z;
+		Draw(x, y, color);
 	}
 
-	void drawLine(double x1, double y1, double x2, double y2, Color color) {
+	void drawLine3D(double x1, double y1, double z1, double x2, double y2, double z2, olc::Pixel color) {
 		int changeX = x2 - x1;
 		int changeY = y2 - y1;
 
@@ -116,9 +119,9 @@ public:
 		int absChangeY = abs(changeY);
 
 		if (x1 >= 0 && x1 < ScreenWidth() && y1 >= 0 && y1 < ScreenHeight())
-			drawPiczel(x1, y1, color);
+			Draw(x1, y1, color);
 		if (x2 >= 0 && x2 < ScreenWidth() && y2 >= 0 && y2 < ScreenHeight())
-			drawPiczel(x2, y2, color);
+			Draw(x2, y2, color);
 
 		//Iterate along the longer dimension to avoid gaps in line
 		if (absChangeX > absChangeY) {
@@ -129,7 +132,7 @@ public:
 				int x = x1 + dx;
 				int y = y1 + dy;
 				if (x >= 0 && x < ScreenWidth() && y >= 0 && y < ScreenHeight())
-					drawPiczel(x, y, color);
+					drawPixel3D(x, y, -0.2 + z1 + (z2 - z1) * dx / absChangeX, color);
 			}
 		}
 		else {
@@ -140,36 +143,49 @@ public:
 				int x = x1 + dx;
 				int y = y1 + dy;
 				if (x >= 0 && x < ScreenWidth() && y >= 0 && y < ScreenHeight())
-					drawPiczel(x, y, color);
+					drawPixel3D(x, y, -0.2 + z1 + (z2 - z1) * dy / absChangeY, color);
 			}
 		}
 	}
 
-	void drawTriangle(double x1, double y1, double x2, double y2, double x3, double y3, Color color) {
-		drawLine(x1, y1, x2, y2, color);
-		drawLine(x2, y2, x3, y3, color);
-		drawLine(x3, y3, x1, y1, color);
+	/*void drawTriangle(double x1, double y1, double x2, double y2, double x3, double y3, olc::Pixel color) {
+		DrawLine(x1, y1, x2, y2, color);
+		DrawLine(x2, y2, x3, y3, color);
+		DrawLine(x3, y3, x1, y1, color);
+	}*/
+
+	void drawTriangle3D(const Vector3D p1, const Vector3D p2, const Vector3D p3, olc::Pixel color) {
+		drawLine3D(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z, color);
+		drawLine3D(p2.x, p2.y, p2.z, p3.x, p3.y, p3.z, color);
+		drawLine3D(p3.x, p3.y, p1.z, p1.x, p1.y, p1.z, color);
 	}
 
-	void drawTriangle(const Vector3D p1, const Vector3D p2, const Vector3D p3, Color color) {
-		drawTriangle(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, color);
-	}
-
-	void fillTriangle(double x1, double y1, double x2, double y2, double x3, double y3, Color color) {
+	/*void fillTriangle(double x1, double y1, double x2, double y2, double x3, double y3, olc::Pixel color) {
 		Vector3D p1(x1, y1, 0);
 		Vector3D p2(x2, y2, 0);
 		Vector3D p3(x3, y3, 0);
-		fillTriangle(p1, p2, p3, color);
-	}
+		fillTriangle3D(p1, p2, p3, color);
+	}*/
 
-	void fillTriangle(const Vector3D p1, const Vector3D p2, const Vector3D p3, Color color, bool useZBuffer = false) {
+	void fillTriangle3D(const Vector3D p1, const Vector3D p2, const Vector3D p3, olc::Pixel color, bool useZBuffer = false, const Vector3D p1Pre = Vector3D(), const Vector3D p2Pre = Vector3D(), const Vector3D p3Pre = Vector3D()) {
 		Vector3D normalVector;
 		double invNz = 0;
+		double a, b, c, d;
+		Vector3D v1Pre = p2Pre.sub(p1Pre);
+		Vector3D v2Pre = p3Pre.sub(p1Pre);
 		if (useZBuffer) {
 			Vector3D v1 = p2.sub(p1);
 			Vector3D v2 = p3.sub(p1);
-			normalVector = v1.crossProduct(v2);
+
+			b = v1.y / (v2.x * v1.y - v2.y * v1.x);
+			a = (1 - b * v2.x) / v1.x;
+
+			d = v1.x / (v2.y * v1.x - v2.x * v1.y);
+			c = (1 - d * v2.y) / v1.y;
+
+			normalVector = v1.crossProduct(v2);// v1Pre.crossProduct(v2Pre);
 			invNz = 1.0 / normalVector.z;
+			//printf("%f %f %f\n %f %f %f\n %f %f %f\n %f\n\n", p1Pre.x, p1Pre.y, p1Pre.z, p2Pre.x, p2Pre.y, p2Pre.z, p3Pre.x, p3Pre.y, p3Pre.z, invNz);
 		}
 		const Vector3D* upperPoint = &p1;
 		const Vector3D* midPoint = &p2;
@@ -207,7 +223,6 @@ public:
 		if ((int)(upperPoint->y) != (int)(midPoint->y)) {
 
 			for (int i = (int)(upperPoint->y); i <= (int)(midPoint->y); i++) {
-				//std::cout << "I:" << i << " height:" << heightIndex << "\n";
 				if (i < 0 || i >= ScreenHeight()) {
 					continue;
 				}
@@ -227,13 +242,21 @@ public:
 
 				for (int j = leftBound; j <= rightBound; j++) {
 					if (useZBuffer) {
-						double z = p1.z - invNz * (normalVector.x * (j - p1.x) + normalVector.y * (i - p1.y));
-						int potato = ScreenHeight();
-						if (zBuffer[getPixelIndex(j, i)] > 0 && zBuffer[getPixelIndex(j, i)] <= z)
-							continue;
-						zBuffer[getPixelIndex(j, i)] = z;
+						double x = a * (j - p1.x) + b * (i - p1.y);
+						double y = c * (j - p1.x) + d * (i - p1.y);
+						double z =  p1Pre.z + (j - p1.x) * (a * v1Pre.z + b * v2Pre.z) + (i - p1.y) * (c * v1Pre.z + d * v2Pre.z);
+						
+						int col = 255 * z / 200;
+						if (col > 255) {
+							col = 255;
+						}
+						bool red = col < 0;
+
+						drawPixel3D(j, i, z, olc::Pixel(red ? 255 : col, red ? 0 : col, red ? 0 : col));
 					}
-					drawPiczel(j, i, color);
+					else {
+						Draw(j, i, color);
+					}
 				}
 
 			}
@@ -274,21 +297,29 @@ public:
 
 			for (int j = leftBound; j <= rightBound; j++) {
 				if (useZBuffer) {
-					double z = p1.z - invNz * (normalVector.x * (j - p1.x) + normalVector.y * (i - p1.y));
-					//std::cout << z << "\n";
-					if (zBuffer[getPixelIndex(j, i)] > 0 && zBuffer[getPixelIndex(j, i)] <= z)
-						continue;
-					zBuffer[getPixelIndex(j, i)] = z;
-				}
-				drawPiczel(j, i, color);
-			}
-		}
-	}
+					double x = a * (j - p1.x) + b * (i - p1.y);
+					double y = c * (j - p1.x) + d * (i - p1.y);
+					double z = p1Pre.z + (j - p1.x) * (a * v1Pre.z + b * v2Pre.z) + (i - p1.y) * (c * v1Pre.z + d * v2Pre.z);
+					/*if (normalVector.z == 0) {
+						z = p1Pre.z;
+					}
+					else {
+						z = p1Pre.z - invNz * (normalVector.x * x + normalVector.y * y);
+					}*/
+					//printf("%f %f\n", z, normalVector.z);
+					//printf("%f %f %f %f %f %f %f %f %f %f %f %f %d %d\n", a, b, c, d, z, x, y, invNz, normalVector.x, normalVector.y, normalVector.z, i, j);
+					
+					int col = 255 * z / 200;
+					if (col > 255) {
+						col = 255;
+					}
+					bool red = col < 0;
 
-	void fillRect(float x, float y, float width, float height, Color color) {
-		for (int i = 0; i < height; i++) {
-			for (int j = 0; j < width; j++) {
-				drawPiczel(i, j, color);
+					drawPixel3D(j, i, z, olc::Pixel(red? 255 : col, red? 0 : col, red? 0 : col));
+				}
+				else {
+					Draw(j, i, color);
+				}
 			}
 		}
 	}
@@ -298,7 +329,7 @@ public:
 		point->y = point->y * fov / point->z + ScreenHeight() / 2;
 	}
 
-	Color getPhongLighting(Color surfColor, Vector3D& camDir, Vector3D& surfNV, Vector3D& lightDir) {
+	/*Color getPhongLighting(Color surfColor, Vector3D& camDir, Vector3D& surfNV, Vector3D& lightDir) {
 		Vector3D ambColor(255, 255, 255);
 		double ambBrightness = 0.6;
 		ambColor = ambColor.multiply(ambBrightness);
@@ -335,31 +366,49 @@ public:
 			totalColor.z = 255;
 
 		return getColor((int) totalColor.x, (int) totalColor.y, (int) totalColor.z);
-	}
+	}*/
 
 	void drawPolygons(const std::vector<Polygon3D*> polygons, const Vector3D cameraPosition, float orientationYAng, float orientationPitch, float fov, bool drawLines) {
 		clearZBuffer();
 		//copy reference to copy of polygon points
 
 		//Vector3D cameraVector(cos(orientationYAng) * cos(orientationPitch), sin(orientationPitch), sin(orientationYAng) * cos(orientationPitch));
-		std::vector<Vector3D*> points;
-		std::vector<Polygon3D*> includedPolygons;
+		//std::vector<Vector3D*> points;
+		//std::vector<Polygon3D*> includedPolygons;
 
 		for (Polygon3D* polygon : polygons) {
+			std::vector<Vector3D*> points;
 			Vector3D cameraToPolygon(polygon->p2->x - cameraPosition.x, polygon->p2->y - cameraPosition.y, polygon->p2->z - cameraPosition.z);
 			Vector3D p1p2(polygon->p2->x - polygon->p1->x, polygon->p2->y - polygon->p1->y, polygon->p2->z - polygon->p1->z);
 			Vector3D p1p3(polygon->p3->x - polygon->p1->x, polygon->p3->y - polygon->p1->y, polygon->p3->z - polygon->p1->z);
 			Vector3D normalVector = p1p2.crossProduct(p1p3);
+
 			if (cameraToPolygon.dotProduct(normalVector) < 0) {
 				polygon->copyPointsToTemp();
 				points.push_back(polygon->tempP1);
 				points.push_back(polygon->tempP2);
 				points.push_back(polygon->tempP3);
-				includedPolygons.push_back(polygon);
+
+				Vector3D cameraPositionToOrigin(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
+				transformation3D::translatePoints(&points, cameraPositionToOrigin);
+				transformation3D::rotatePointsAroundYParralelAxis(&points, -orientationYAng + 1.570795, 0, 0);
+				transformation3D::rotatePointsAroundXParralelAxis(&points, -orientationPitch, 0, 0);
+
+				Vector3D p1Pre = *polygon->tempP1;
+				Vector3D p2Pre = *polygon->tempP2;
+				Vector3D p3Pre = *polygon->tempP3;
+
+				for (Vector3D* p : points) {
+					projectPoint(p, fov);
+				}
+
+				fillTriangle3D(*(polygon->tempP1), *(polygon->tempP2), *(polygon->tempP3), polygon->color, true, p1Pre, p2Pre, p3Pre);
+				if (drawLines)
+					drawTriangle3D(*(polygon->tempP1), *(polygon->tempP2), *(polygon->tempP3), olc::WHITE);
 			}
 		}
 
-		Vector3D cameraPositionToOrigin(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
+		/*Vector3D cameraPositionToOrigin(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
 		//translate points to origin
 		transformation3D::translatePoints(&points, cameraPositionToOrigin);
 		//rotate so that world so that camera stares towards z axis
@@ -372,24 +421,23 @@ public:
 		}
 
 		//TEMPORARY FOR PHONG LIGHTING TEST
-		Vector3D camDir(cos(orientationYAng + 1.570795), sin(orientationPitch), cos(orientationPitch) * sin(orientationYAng + 1.570795));
+		//Vector3D camDir(cos(orientationYAng + 1.570795), sin(orientationPitch), cos(orientationPitch) * sin(orientationYAng + 1.570795));
 
 		for (Polygon3D* polygon : includedPolygons) {
 
 			//TODO IMPLEMENT NOT DUMB
-			Vector3D p1p2(polygon->p2->x - polygon->p1->x, polygon->p2->y - polygon->p1->y, polygon->p2->z - polygon->p1->z);
-			Vector3D p1p3(polygon->p3->x - polygon->p1->x, polygon->p3->y - polygon->p1->y, polygon->p3->z - polygon->p1->z);
-			Vector3D normalVector = p1p2.crossProduct(p1p3).getUnitVector();
-			Vector3D lightDir(1, -1, -1);
-			lightDir = lightDir.getUnitVector();
+			//Vector3D p1p2(polygon->p2->x - polygon->p1->x, polygon->p2->y - polygon->p1->y, polygon->p2->z - polygon->p1->z);
+			//Vector3D p1p3(polygon->p3->x - polygon->p1->x, polygon->p3->y - polygon->p1->y, polygon->p3->z - polygon->p1->z);
+			//Vector3D normalVector = p1p2.crossProduct(p1p3).getUnitVector();
+			//Vector3D lightDir(1, -1, -1);
+			//lightDir = lightDir.getUnitVector();
 
-			//Color color = getPhongLighting(polygon->color, camDir, normalVector, lightDir);
 			//FillTriangle(polygon->tempP1->x, polygon->tempP1->y, polygon->tempP2->x, polygon->tempP2->y, polygon->tempP3->x, polygon->tempP3->y, olc::Pixel(getR(color), getG(color), getB(color)));
 			
-			fillTriangle(*(polygon->tempP1), *(polygon->tempP2), *(polygon->tempP3), getPhongLighting(polygon->color, camDir, normalVector, lightDir), true);
+			fillTriangle3D(*(polygon->tempP1), *(polygon->tempP2), *(polygon->tempP3), polygon->color, true);
 			if (drawLines)
-				drawTriangle(*(polygon->tempP1), *(polygon->tempP2), *(polygon->tempP3), polygon->p1p2Color);
-		}
+				drawTriangle3D(*(polygon->tempP1), *(polygon->tempP2), *(polygon->tempP3), olc::WHITE);
+		}*/
 	}
 
 	void draw3DLine(Vector3D p1, Vector3D p2, const Vector3D cameraPosition, float orientationYAng, float orientationPitch, float fov) {
@@ -405,7 +453,7 @@ public:
 		transformation3D::rotatePointAroundXParralelAxis(&p2, -orientationPitch, 0, 0);
 		projectPoint(&p2, fov);
 
-		drawLine(p1.x, p1.y, p2.x, p2.y, green);
+		drawLine3D(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z, olc::GREEN);
 	}
 
 	void draw3DPoint(Vector3D p,const Vector3D cameraPosition, float orientationYAng, float orientationPitch, float fov) {
@@ -416,7 +464,7 @@ public:
 		transformation3D::rotatePointAroundXParralelAxis(&p, -orientationPitch, 0, 0);
 		projectPoint(&p, fov);
 
-		drawPiczel((int)p.x, (int)p.y, red);
+		Draw((int)p.x, (int)p.y, olc::RED);
 	}
 
 	bool OnUserCreate() override
@@ -427,7 +475,7 @@ public:
 		//cameraPos.y = 27.5;
 		//cameraPos.x = 52;
 
-		std::vector<Polygon3D*>* b2polygons = createBox(100, 5, 100, 0, 35, 0);
+		std::vector<Polygon3D*>* b2polygons = createBox(300, 5, 290, 0, 35, 0);
 		std::vector<ConvexHull*>* hulls = new std::vector<ConvexHull*>();
 		hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b2polygons), 1));
 		RigidBody* b2 = new RigidBody(*hulls, 1, 1, 0.3, true);
@@ -445,12 +493,12 @@ public:
 	{
 		static double dropTime = 10000000;
 		dropTime += fElapsedTime;
-		if (dropTime > 500) {
+		if (dropTime > 2) {
 			dropTime = 0;
 			double x = 5;// 52;
-			double y = -10;
+			double y = -50;
 			double z = 0;
-			std::vector<Polygon3D*>* b1polygons = createBox(1, 25, 1, x, y, z);
+			std::vector<Polygon3D*>* b1polygons = createBox(12, 12, 12, x, y, z);
 
 			std::vector<Vector3D*> points;
 			for (Polygon3D* polygon : *b1polygons) {
@@ -512,7 +560,7 @@ public:
 
 			std::vector<Vector3D*> b3points;
 			for (Polygon3D* polygon : *b3polygons) {
-				allPolygons->push_back(polygon);
+				//allPolygons->push_back(polygon);
 				bool p1 = true;
 				bool p2 = true;
 				bool p3 = true;
@@ -540,7 +588,7 @@ public:
 			std::vector<ConvexHull*>* hulls = new std::vector<ConvexHull*>();
 			hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b1polygons), 1));
 			//hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b2polygons), 1));
-			hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b3polygons), 1));
+			//hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b3polygons), 1));
 			RigidBody* b1 = new RigidBody(*hulls, 1, 1, 0.3, false);
 			pEngine.addRigidBody(b1);
 			delete b1polygons;
@@ -589,9 +637,11 @@ public:
 		pEngine.iterateEngine(fElapsedTime);
 		auto t2 = std::chrono::system_clock::now();
 
-		FillRect(0, 0, ScreenWidth(), ScreenHeight(), olc::Pixel(255, 255, 255));
+		Clear(olc::VERY_DARK_GREY);
+		auto t3 = std::chrono::system_clock::now();
 		clearZBuffer();
-		drawPolygons(*allPolygons, cameraPos, yAng, xAng, 200, false);
+		auto t4 = std::chrono::system_clock::now();
+		drawPolygons(*allPolygons, cameraPos, yAng, xAng, 600, false);
 
 		//draw octree
 		/*std::vector<OctreeNode*> nodes;
@@ -615,12 +665,16 @@ public:
 			draw3DLine(Point3D(p, 0, s, s), Point3D(p, 0, 0, s), cameraPos, yAng, xAng, 200);
 		}*/
 
-		auto t3 = std::chrono::system_clock::now();
+		auto t5 = std::chrono::system_clock::now();
 
 		std::chrono::duration<float> physTime = t2 - t1;
-		std::chrono::duration<float> renderTime = t3 - t2;
+		std::chrono::duration<float> renderTime = t5 - t2;
+		std::chrono::duration<float> rectTime = t3 - t2;
+		std::chrono::duration<float> clearZTime = t4 - t3;
+		std::chrono::duration<float> drawPolygons = t5 - t4;
 
-		//printf("renderTime: %f, physicsTime: %f\n", renderTime.count(), physTime.count());
+		//printf("renderTime: %f, physicsTime: %f, drawRect: %f, clearZBuffer: %f, drawpolygons %f\n", renderTime.count(),
+			//physTime.count(), rectTime.count(), clearZTime.count(), drawPolygons.count());
 		return true;
 	}
 };
@@ -629,7 +683,7 @@ public:
 int main()
 {
 	Example demo;
-	if (demo.Construct(550, 550, 1, 1))
+	if (demo.Construct(1920, 1080, 1, 1))
 		demo.Start();
 
 	return 0;

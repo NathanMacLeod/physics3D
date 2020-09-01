@@ -19,7 +19,7 @@ RigidBody::RigidBody(const std::vector<ConvexHull*>& hulls, double density, doub
 	findCollisionRadius();
 	
 	if (!fixed)
-		angularVelocity = Vector3D(0, 15, 0.2);
+		velocity = Vector3D(0, 0, -15);
 
 	orientationPoint1 = Vector3D(centerOfMass.x, centerOfMass.y - 1, centerOfMass.z);
 	orientationPoint2 = Vector3D(centerOfMass.x + 1, centerOfMass.y, centerOfMass.z);
@@ -92,7 +92,7 @@ void RigidBody::translate(const Vector3D translation) {
 }
 
 void RigidBody::moveInTime(double time) {
-	if (fixed)
+	if (fixed && false)
 		return;
 	double rotationMagnitude = angularVelocity.getMagnitude() * time;
 	Vector3D translation = velocity.multiply(time);
