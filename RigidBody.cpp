@@ -18,8 +18,10 @@ RigidBody::RigidBody(const std::vector<ConvexHull*>& hulls, double density, doub
 
 	findCollisionRadius();
 	
-	if (!fixed)
-		velocity = Vector3D(0, 0, -15);
+	if (!fixed) {
+		velocity = Vector3D(0, 0, 0);
+		angularVelocity = Vector3D(0, 5, 0.1);
+	}
 
 	orientationPoint1 = Vector3D(centerOfMass.x, centerOfMass.y - 1, centerOfMass.z);
 	orientationPoint2 = Vector3D(centerOfMass.x + 1, centerOfMass.y, centerOfMass.z);
