@@ -15,9 +15,10 @@ private:
 	double octreeSize;
 	double octreeMin;
 	std::vector<RigidBody*> rigidBodies;
+	uint16_t giveID();
 	void pushBodiesApart(RigidBody* collider, RigidBody* collidee, const Vector3D nV, double colDepth);
 	void resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Vector3D colPoint, const std::vector<ConvexHull::ColPointInfo> supPoints, double restitution);
-	void detectAndResolveCollisions(RigidBody* body1, RigidBody* body2, std::vector<int>* tested);
+	void detectAndResolveCollisions(RigidBody* body1, RigidBody* body2);
 	OctreeNode root;
 public:
 	PhysicsEngine(double timestep);

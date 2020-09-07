@@ -3,7 +3,7 @@
 #define RIGIDSURFACE_H
 
 #include <vector>
-#include "Vector3D.h"
+#include "../Math/Vector3D.h"
 
 class RigidSurface {
 	std::vector<Vector3D*> points;

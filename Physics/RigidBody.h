@@ -3,13 +3,17 @@
 #define RIGIDBODY_H
 
 #include <vector>;
-#include "ConvexHull.h"
+#include <inttypes.h>;
+#include "ConvexHull.h";
+#include "CollisionInfo.h";
 
 class RigidBody {
 
 private:
 	std::vector<Vector3D*> pointsToTransform;
 	std::vector<ConvexHull*> hulls;
+	std::vector<uint16_t> testedList;
+	std::vector<CollisionInfo> collHistory;
 	Vector3D centerOfMass;
 	Vector3D velocity;
 	Vector3D angularVelocity;
@@ -23,6 +27,8 @@ private:
 	double restitution;
 	double* inertiaTensor;
 	bool fixed;
+	bool trackHistory;
+	uint16_t ID;
 
 	void findBodyMassAndInertia(double density);
 	void findCollisionRadius();
@@ -48,9 +54,19 @@ public:
 	double getInverseMass() const;
 	double getFriction() const;
 	double getRestitution() const;
+	uint16_t getID();
+	void setID(uint16_t ID);
 	void translate(const Vector3D translation);
 	void acclerateLineraly(const Vector3D changeInVelocity);
 	void moveInTime(double time);
+	bool alreadyTestedAgainst(uint16_t colliderID);
+	void addTestedAgainst(uint16_t colliderID);
+	void clearTestedList();
+	void addToColHistory(uint16_t collider, double magnitude);
+	std::vector<CollisionInfo>* getCollHistory();
+	void clearCollHistory();
+	bool trackingCollHistory();
+	void setTrackCollHistory(bool b);
 	bool getFixed();
 };
 

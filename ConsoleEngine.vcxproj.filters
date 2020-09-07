@@ -1,0 +1,75 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="Physics\CollisionInfo.cpp">
+      <Filter>Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="Physics\ConvexHull.cpp">
+      <Filter>Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="Physics\OctreeNode.cpp">
+      <Filter>Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="Physics\PhysicsEngine.cpp">
+      <Filter>Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="Physics\RigidBody.cpp">
+      <Filter>Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="Physics\RigidSurface.cpp">
+      <Filter>Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\Vector3D.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="OLCEngine\olcExampleProgram.cpp">
+      <Filter>OLCEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="OLCEngine\Polygon3D.cpp">
+      <Filter>OLCEngine</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Math\transformation3D.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Physics\CollisionInfo.h">
+      <Filter>Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Physics\ConvexHull.h">
+      <Filter>Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Physics\OctreeNode.h">
+      <Filter>Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Physics\PhysicsEngine.h">
+      <Filter>Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Physics\RigidBody.h">
+      <Filter>Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Physics\RigidSurface.h">
+      <Filter>Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Vector3D.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="OLCEngine\olcPixelGameEngine.h">
+      <Filter>OLCEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="OLCEngine\Polygon3D.h">
+      <Filter>OLCEngine</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Math">
+      <UniqueIdentifier>{133a16ef-bdb3-4127-a4d7-beca38297999}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Physics">
+      <UniqueIdentifier>{077b9433-22a9-467a-b34c-e916e14e87e6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="OLCEngine">
+      <UniqueIdentifier>{2668af1e-2043-43ae-b3c8-df7bba139190}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

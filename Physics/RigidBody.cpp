@@ -1,5 +1,5 @@
 #include "RigidBody.h"
-#include "transformation3D.h"
+#include "../Math/transformation3D.h"
 #include <stdio.h>
 
 RigidBody::RigidBody(const std::vector<ConvexHull*>& hulls, double density, double friction, double restitution, bool fixed) {
@@ -7,6 +7,8 @@ RigidBody::RigidBody(const std::vector<ConvexHull*>& hulls, double density, doub
 	this->friction = friction;
 	this->restitution = restitution;
 	this->hulls = hulls;
+	ID = -1; //unitialized
+	trackHistory = false;
 
 	findBodyMassAndInertia(density);
 
@@ -35,6 +37,51 @@ RigidBody::~RigidBody() {
 	for (ConvexHull* h : hulls) {
 		delete h;
 	}
+}
+
+uint16_t RigidBody::getID() {
+	return ID;
+}
+
+void RigidBody::setID(uint16_t ID) {
+	this->ID = ID;
+}
+
+std::vector<CollisionInfo>* RigidBody::getCollHistory() {
+	return &collHistory;
+}
+
+void RigidBody::clearCollHistory() {
+	collHistory.clear();
+}
+
+void RigidBody::addToColHistory(uint16_t collider, double magnitude) {
+	collHistory.push_back(CollisionInfo(collider, magnitude));
+}
+
+bool RigidBody::trackingCollHistory() {
+	return trackHistory;
+}
+
+void RigidBody::setTrackCollHistory(bool b) {
+	trackHistory = b;
+}
+
+bool RigidBody::alreadyTestedAgainst(uint16_t colliderID) {
+	for (uint16_t id : testedList) {
+		if (id == colliderID) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void RigidBody::addTestedAgainst(uint16_t colliderID) {
+	testedList.push_back(colliderID);
+}
+
+void RigidBody::clearTestedList() {
+	testedList.clear();
 }
 
 std::vector<ConvexHull*>* RigidBody::getHulls() {

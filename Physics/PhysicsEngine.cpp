@@ -14,6 +14,11 @@ void PhysicsEngine::setGravity(Vector3D gravity) {
 	this->gravity = gravity;
 }
 
+uint16_t PhysicsEngine::giveID() {
+	static uint16_t id = 0;
+	return id++;
+}
+
 void PhysicsEngine::setOctree(bool useOctree, Vector3D octreeOrigin, double octreeSize, double octreeMinSize) {
 	this->useOctree = useOctree;
 	this->octreeOrigin = octreeOrigin.add(Vector3D(-octreeSize / 2.0, -octreeSize / 2.0, -octreeSize / 2.0));
@@ -27,6 +32,7 @@ OctreeNode* PhysicsEngine::getOctreeRoot() {
 
 void PhysicsEngine::addRigidBody(RigidBody* body) {
 	rigidBodies.push_back(body);
+	body->setID(giveID());
 }
 
 bool PhysicsEngine::removeRigidBody(RigidBody* body) {
@@ -100,6 +106,15 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 		collider->applyImpulseAtPosition(impulse, colPoint);
 		impulse = impulse.multiply(-1);
 		collidee->applyImpulseAtPosition(impulse, colPoint);
+
+		//collision history is meant to be used by outside classes to be able to know what physics
+		//stuff has taken place since their last checked
+		if (collider->trackingCollHistory()) {
+			collider->addToColHistory(collidee->getID(), impulseMagnitude);
+		}
+		if (collidee->trackingCollHistory()) {
+			collidee->addToColHistory(collider->getID(), impulseMagnitude);
+		}
 	}
 	if (frictionImpulse.notZero()) {
 		collider->applyImpulseAtPosition(frictionImpulse, colPoint);
@@ -109,20 +124,15 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 	}
 }
 
-void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body2, std::vector<int>* tested) {
-	//reduce checking same body multiple times across different leafs
-	int code = (int)body1 * (int)body2;
-	bool alreadyTested = false;
-	for (int testedCode : *tested) {
-		if (testedCode == code) {
-			alreadyTested = true;
-			break;
-		}
-	}
-	if (alreadyTested) {
+void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body2) {
+	//check if bodies already tested against each other in this physics tick
+	if (body1->alreadyTestedAgainst(body2->getID())) {
 		return;
 	}
-	tested->push_back(code);
+	else {
+		body1->addTestedAgainst(body2->getID());
+		body2->addTestedAgainst(body1->getID());
+	}
 
 	if (!body1->bodiesInCollisionRange(body2)) {
 		return;
@@ -131,7 +141,7 @@ void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body
 	std::vector<ConvexHull::ColPointInfo> supPoints;
 	Vector3D norm;
 	Vector3D colPoint;
-	double colDepth = -1;
+	double colDepth = -1; //default value of -1 indicates no collision found yet
 	bool isFaceCollision = true;
 
 	RigidBody* collider = body2;
@@ -234,7 +244,8 @@ void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body
 		bool contactColl = false;
 
 		if (isFaceCollision) {
-
+			//using an average of the points collided is a rough solution to poor contact behavior,
+			//has some issues like not picking up torque from friction as well
 			contactColl = true;
 			Vector3D average(0, 0, 0);
 			double depth = 0;
@@ -259,7 +270,7 @@ void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body
 
 		}
 		else if (!collidee->verifyCollisionPointNotExiting(collider, norm, colPoint)) {
-			resolveImpulses(collider, collidee, norm, colPoint, supPoints, collidee->getRestitution());
+			resolveImpulses(collider, collidee, norm, colPoint, supPoints, (collidee->getRestitution() + collider->getRestitution()) / 2.0);
 		}
 
 		pushBodiesApart(collider, collidee, norm, (contactColl) ? 0.15 * colDepth : colDepth);
@@ -281,13 +292,12 @@ void PhysicsEngine::iterateEngineTimestep() {
 	for (RigidBody* body : rigidBodies) {
 		body->acclerateLineraly(gravityAcceleration);
 		body->moveInTime(timestep);
+		body->clearTestedList();
 	}
-
-	std::vector<int> tested;
 
 	if (useOctree) {
 
-		OctreeNode root = OctreeNode(octreeOrigin, octreeSize, octreeMin);
+		root = OctreeNode(octreeOrigin, octreeSize, octreeMin);
 		for (RigidBody* b : rigidBodies) {
 			root.addBody(b);
 		}
@@ -301,7 +311,7 @@ void PhysicsEngine::iterateEngineTimestep() {
 					RigidBody* body1 = leaf->getBodies()->at(i);
 					RigidBody* body2 = leaf->getBodies()->at(j);
 
-					detectAndResolveCollisions(body1, body2, &tested);
+					detectAndResolveCollisions(body1, body2);
 				}
 			}
 		}
@@ -313,7 +323,7 @@ void PhysicsEngine::iterateEngineTimestep() {
 				RigidBody* body1 = rigidBodies.at(i);
 				RigidBody* body2 = rigidBodies.at(j);
 
-				detectAndResolveCollisions(body1, body2, &tested);
+				detectAndResolveCollisions(body1, body2);
 			}
 		}
 	}
