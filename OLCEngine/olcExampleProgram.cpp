@@ -789,24 +789,24 @@ public:
 
 		//draw octree
 		/*std::vector<OctreeNode*> nodes;
-		OctreeNode::getAllNodes(&pEngine.getOctreeRoot(), &nodes);
+		pEngine.getOctreeRoot()->getAllNodes(&nodes);
 		for (OctreeNode* node : nodes) {
 			double s = node->getSize();
 			Vector3D p = node->getPos();
-			draw3DLine(Point3D(p, 0, 0, 0), Point3D(p, s, 0, 0), cameraPos, yAng, xAng, 200);
-			draw3DLine(Point3D(p, s, 0, 0), Point3D(p, s, 0, s), cameraPos, yAng, xAng, 200);
-			draw3DLine(Point3D(p, s, 0, s), Point3D(p, 0, 0, s), cameraPos, yAng, xAng, 200);
-			draw3DLine(Point3D(p, 0, 0, s), Point3D(p, 0, 0, 0), cameraPos, yAng, xAng, 200);
+			draw3DLine(p.add(Vector3D(0, 0, 0)), p.add(Vector3D(s, 0, 0)), cameraPos, yAng, xAng, fv);
+			draw3DLine(p.add(Vector3D(s, 0, 0)), p.add(Vector3D(s, 0, s)), cameraPos, yAng, xAng, fv);
+			draw3DLine(p.add(Vector3D(s, 0, s)), p.add(Vector3D(0, 0, s)), cameraPos, yAng, xAng, fv);
+			draw3DLine(p.add(Vector3D(0, 0, s)), p.add(Vector3D(0, 0, 0)), cameraPos, yAng, xAng, fv);
 
-			draw3DLine(Point3D(p, 0, s, 0), Point3D(p, s, s, 0), cameraPos, yAng, xAng, 200);
-			draw3DLine(Point3D(p, s, s, 0), Point3D(p, s, s, s), cameraPos, yAng, xAng, 200);
-			draw3DLine(Point3D(p, s, s, s), Point3D(p, 0, s, s), cameraPos, yAng, xAng, 200);
-			draw3DLine(Point3D(p, 0, s, s), Point3D(p, 0, s, 0), cameraPos, yAng, xAng, 200);
+			draw3DLine(p.add(Vector3D(0, s, 0)), p.add(Vector3D(s, s, 0)), cameraPos, yAng, xAng, fv);
+			draw3DLine(p.add(Vector3D(s, s, 0)), p.add(Vector3D(s, s, s)), cameraPos, yAng, xAng, fv);
+			draw3DLine(p.add(Vector3D(s, s, s)), p.add(Vector3D(0, s, s)), cameraPos, yAng, xAng, fv);
+			draw3DLine(p.add(Vector3D(0, s, s)), p.add(Vector3D(0, s, 0)), cameraPos, yAng, xAng, fv);
 
-			draw3DLine(Point3D(p, 0, s, 0), Point3D(p, 0, 0, 0), cameraPos, yAng, xAng, 200);
-			draw3DLine(Point3D(p, s, s, 0), Point3D(p, s, 0, 0), cameraPos, yAng, xAng, 200);
-			draw3DLine(Point3D(p, s, s, s), Point3D(p, s, 0, s), cameraPos, yAng, xAng, 200);
-			draw3DLine(Point3D(p, 0, s, s), Point3D(p, 0, 0, s), cameraPos, yAng, xAng, 200);
+			draw3DLine(p.add(Vector3D(0, s, 0)), p.add(Vector3D(0, 0, 0)), cameraPos, yAng, xAng, fv);
+			draw3DLine(p.add(Vector3D(s, s, 0)), p.add(Vector3D(s, 0, 0)), cameraPos, yAng, xAng, fv);
+			draw3DLine(p.add(Vector3D(s, s, s)), p.add(Vector3D(s, 0, s)), cameraPos, yAng, xAng, fv);
+			draw3DLine(p.add(Vector3D(0, s, s)), p.add(Vector3D(0, 0, s)), cameraPos, yAng, xAng, fv);
 		}*/
 
 		auto t5 = std::chrono::system_clock::now();
