@@ -4,11 +4,16 @@ OctreeNode::OctreeNode(Vector3D pos, double size, double minSize) {
 	this->size = size;
 	this->minSize = minSize;
 	this->pos = pos;
+	for (int i = 0; i < N_CHILD; i++) {
+		children[i] = nullptr;
+	}
 }
 
 OctreeNode::OctreeNode() {
+	printf("hello octreenode default constructor\n");
 	size = 0;
 	minSize = 0;
+	leafNode = true;
 	for (int i = 0; i < N_CHILD; i++) {
 		children[i] = nullptr;
 	}
@@ -70,14 +75,19 @@ void OctreeNode::getCollisionLeafs(OctreeNode* curr, std::vector<OctreeNode*>* o
 	}
 }
 
+void OctreeNode::getAllNodes(std::vector<OctreeNode*>* out) {
+	getAllNodes(this, out);
+}
+
+void OctreeNode::getCollisionLeafs(std::vector<OctreeNode*>* out) {
+	getCollisionLeafs(this, out);
+}
+
 bool OctreeNode::isLeafNode() {
 	return leafNode;
 }
 
 void OctreeNode::expandNode() {
-	for (int i = 0; i < N_CHILD; i++) {
-		children[i] = nullptr;
-	}
 
 	if (size <= minSize || bodies.size() <= 1) {
 		leafNode = true;

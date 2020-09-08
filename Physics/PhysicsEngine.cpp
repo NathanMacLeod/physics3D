@@ -303,7 +303,7 @@ void PhysicsEngine::iterateEngineTimestep() {
 		}
 		root.expandNode();
 		std::vector<OctreeNode*> octreeLeafs;
-		OctreeNode::getCollisionLeafs(&root, &octreeLeafs);
+		root.getCollisionLeafs(&octreeLeafs);
 
 		for (OctreeNode* leaf : octreeLeafs) {
 			for (int i = 0; i < leaf->getBodies()->size(); i++) {

@@ -13,6 +13,8 @@ private:
 	std::vector<RigidBody*> bodies;
 	OctreeNode* children[N_CHILD];
 
+	static void getCollisionLeafs(OctreeNode* curr, std::vector<OctreeNode*>* out);
+	static void getAllNodes(OctreeNode* curr, std::vector<OctreeNode*>* out); //for debug
 public:
 	~OctreeNode();
 	OctreeNode();
@@ -23,6 +25,6 @@ public:
 	void addBody(RigidBody* b);
 	bool isLeafNode();
 	std::vector<RigidBody*>* getBodies();
-	static void getCollisionLeafs(OctreeNode* curr, std::vector<OctreeNode*>* out);
-	static void getAllNodes(OctreeNode* curr, std::vector<OctreeNode*>* out); //for debug
+	void getCollisionLeafs(std::vector<OctreeNode*>* out);
+	void getAllNodes(std::vector<OctreeNode*>* out);
 };
