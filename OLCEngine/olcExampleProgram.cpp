@@ -9,6 +9,8 @@
 #include "Polygon3D.h"
 #include "../Math/transformation3D.h"
 #include "../Physics/PhysicsEngine.h"
+#include "../Math/Rotor.h"
+#include "PhysicsObject.h";
 
 
 //ScreenHeight()
@@ -17,14 +19,26 @@
 
 std::vector<Polygon3D>* createBox(double x, double y, double z, double xPos, double yPos, double zPos) {
 	std::vector<Polygon3D>* polygons = new std::vector<Polygon3D>();
-	Vector3D* p1 = new Vector3D(-x / 2.0, -y / 2.0, -z / 2.0);
-	Vector3D* p2 = new Vector3D(-x / 2.0, y / 2.0, -z / 2.0);
-	Vector3D* p3 = new Vector3D(x / 2.0, -y / 2.0, -z / 2.0);
-	Vector3D* p4 = new Vector3D(x / 2.0, y / 2.0, -z / 2.0);
-	Vector3D* p5 = new Vector3D(-x / 2.0, -y / 2.0, z / 2.0);
-	Vector3D* p6 = new Vector3D(-x / 2.0, y / 2.0, z / 2.0);
-	Vector3D* p7 = new Vector3D(x / 2.0, -y / 2.0, z / 2.0);
-	Vector3D* p8 = new Vector3D(x / 2.0, y / 2.0, z / 2.0);
+	Vector3D p1 = Vector3D(-x / 2.0, -y / 2.0, -z / 2.0);
+	Vector3D p2 = Vector3D(-x / 2.0, y / 2.0, -z / 2.0);
+	Vector3D p3 = Vector3D(x / 2.0, -y / 2.0, -z / 2.0);
+	Vector3D p4 = Vector3D(x / 2.0, y / 2.0, -z / 2.0);
+	Vector3D p5 = Vector3D(-x / 2.0, -y / 2.0, z / 2.0);
+	Vector3D p6 = Vector3D(-x / 2.0, y / 2.0, z / 2.0);
+	Vector3D p7 = Vector3D(x / 2.0, -y / 2.0, z / 2.0);
+	Vector3D p8 = Vector3D(x / 2.0, y / 2.0, z / 2.0);
+
+	Vector3D translation(xPos, yPos, zPos);
+	std::vector<Vector3D*> points;
+	points.push_back(&p1);
+	points.push_back(&p2);
+	points.push_back(&p3);
+	points.push_back(&p4);
+	points.push_back(&p5);
+	points.push_back(&p6);
+	points.push_back(&p7);
+	points.push_back(&p8);
+	transformation3D::translatePoints(&points, translation);
 
 	polygons->push_back(Polygon3D(p1, p2, p3, olc::WHITE, olc::BLACK));
 	polygons->push_back(Polygon3D(p2, p4, p3, olc::WHITE, olc::BLACK));
@@ -44,31 +58,20 @@ std::vector<Polygon3D>* createBox(double x, double y, double z, double xPos, dou
 	polygons->push_back(Polygon3D(p1, p3, p5, olc::WHITE, olc::BLACK));
 	polygons->push_back(Polygon3D(p5, p3, p7, olc::WHITE, olc::BLACK));
 
-	Vector3D translation(xPos, yPos, zPos);
-	std::vector<Vector3D*> points;
-	points.push_back(p1);
-	points.push_back(p2);
-	points.push_back(p3);
-	points.push_back(p4);
-	points.push_back(p5);
-	points.push_back(p6);
-	points.push_back(p7);
-	points.push_back(p8);
-	transformation3D::translatePoints(&points, translation);
 	return polygons;
 }
 
-std::vector<RigidSurface*>* createRigidBodyFromPolygons(std::vector<Polygon3D>& polygons) {
+std::vector<RigidSurface*>* createRigidBodyFromPolygons(std::vector<Polygon3D>* polygons) {
 	std::vector<RigidSurface*>* surfaces = new std::vector<RigidSurface*>();
-	for (Polygon3D polygon : polygons) {
-		Vector3D v1 = polygon.p2->sub(*polygon.p1);
-		Vector3D v2 = polygon.p3->sub(*polygon.p1); 
+	for (Polygon3D polygon : *polygons) {
+		Vector3D v1 = polygon.p2.sub(polygon.p1);
+		Vector3D v2 = polygon.p3.sub(polygon.p1); 
 		Vector3D normalVector = (v1.crossProduct(v2)).getUnitVector();
-		std::vector<Vector3D*>* points = new std::vector<Vector3D*>();
-		points->push_back(polygon.p1);
-		points->push_back(polygon.p2);
-		points->push_back(polygon.p3);
-		RigidSurface* surface = new RigidSurface(*points, normalVector);
+		std::vector<Vector3D> points;
+		points.push_back(polygon.p1);
+		points.push_back(polygon.p2);
+		points.push_back(polygon.p3);
+		RigidSurface* surface = new RigidSurface(&points, normalVector);
 		surfaces->push_back(surface);
 	}
 	return surfaces;
@@ -79,7 +82,7 @@ class Example : public olc::PixelGameEngine {
 	double queuedTime;
 	Vector3D cameraPos;
 	PhysicsEngine pEngine = PhysicsEngine(0.01);
-	std::vector<Polygon3D>* allPolygons;
+	std::vector<PhysicsObject> models;
 	double yAng = 3.14159 / 2.0;
 	double xAng = 0;
 
@@ -105,14 +108,14 @@ public:
 	
 	void drawPixel3D(int x, int y, double z, olc::Pixel color) {
 		int indx = getPixelIndex(x, y);
-		if (z > 0 && zBuffer[indx] > 0 && zBuffer[indx] <= z)
+		if (z <= 0 || (zBuffer[indx] > 0 && zBuffer[indx] <= z))
 			return;
 		zBuffer[indx] = z;
 		Draw(x, y, color);
 	}
 
 	void drawLine3D(double x1, double y1, double x2, double y2, double fov, Vector3D p1Pre, Vector3D p2Pre, olc::Pixel color) {
-		double weight = -0.1; //help draw lines over z buffer from the faces
+		double weight = -0.5; //help draw lines over z buffer from the faces
 
 		int changeX = x2 - x1;
 		int changeY = y2 - y1;
@@ -156,14 +159,14 @@ public:
 						z = v.z * t;
 					}
 
-					int col = 255 * z / 50;
+					int col = 255 * z / 250;
 					if (col > 255) {
 						col = 255;
 					}
 					bool red = col < 0;
 
 					drawPixel3D(x, y, z + weight, color);
-					//drawPixel3D(x, y, z - 0.2, olc::Pixel(red ? 255 : col, red ? 0 : col, red ? 0 : col));
+					//drawPixel3D(x, y, z + weight, olc::Pixel(red ? 255 : col, red ? 0 : col, red ? 0 : col));
 				}
 			}
 		}
@@ -189,14 +192,14 @@ public:
 						z = v.z * t;
 					}
 
-					int col = 255 * z / 50;
+					int col = 255 * z / 250;
 					if (col > 255) {
 						col = 255;
 					}
 					bool red = col < 0;
 
 					drawPixel3D(x, y, z + weight, color);
-					//drawPixel3D(x, y, z - 0.2, olc::Pixel(red ? 255 : col, red ? 0 : col, red ? 0 : col));
+					//drawPixel3D(x, y, z + weight, olc::Pixel(red ? 255 : col, red ? 0 : col, red ? 0 : col));
 				}
 			}
 		}
@@ -506,27 +509,6 @@ public:
 		if (maxZ.z <= 0) {
 			return; //returning early results in nothing in out and thus isnt drawn
 		}
-
-		//rough test to not bother with polygons outside field of view
-		maxX = max(maxZ.x, midZ.x);
-		maxX = max(maxX, minZ.x);
-		minX = min(maxZ.x, midZ.x);
-		minX = min(minX, minZ.x);
-
-		maxY = max(maxZ.y, midZ.y);
-		maxY = max(maxY, minZ.y);
-		minY = min(maxZ.y, midZ.y);
-		minY = min(minY, minZ.y);
-
-		maxX *= fov / maxZ.z;
-		minX *= fov / maxZ.z;
-		maxY *= fov / maxZ.z;
-		minY *= fov / maxZ.z;
-
-		if (maxX < -ScreenWidth()/2.0 || minX > ScreenWidth()/2.0 || maxY < -ScreenWidth() / 2.0 || minY > ScreenHeight()/2.0) {
-			return;
-		}
-
 		
 		if (midZ.z <= 0) {
 			out->push_back(Tri(maxZ, clipLine(maxZ, midZ), clipLine(maxZ, minZ)));
@@ -545,7 +527,6 @@ public:
 	}
 
 	void drawPolygons(const std::vector<Polygon3D>* polygons, const Vector3D cameraPosition, float orientationYAng, float orientationPitch, float fov, bool drawLines) {
-		clearZBuffer();
 		//copy reference to copy of polygon points
 
 		//Vector3D cameraVector(cos(orientationYAng) * cos(orientationPitch), sin(orientationPitch), sin(orientationYAng) * cos(orientationPitch));
@@ -554,13 +535,13 @@ public:
 
 		for (Polygon3D polygon : *polygons) {
 			std::vector<Vector3D*> points;
-			Vector3D cameraToPolygon(polygon.p2->x - cameraPosition.x, polygon.p2->y - cameraPosition.y, polygon.p2->z - cameraPosition.z);
-			Vector3D p1p2(polygon.p2->x - polygon.p1->x, polygon.p2->y - polygon.p1->y, polygon.p2->z - polygon.p1->z);
-			Vector3D p1p3(polygon.p3->x - polygon.p1->x, polygon.p3->y - polygon.p1->y, polygon.p3->z - polygon.p1->z);
+			Vector3D cameraToPolygon(polygon.p2.x - cameraPosition.x, polygon.p2.y - cameraPosition.y, polygon.p2.z - cameraPosition.z);
+			Vector3D p1p2(polygon.p2.x - polygon.p1.x, polygon.p2.y - polygon.p1.y, polygon.p2.z - polygon.p1.z);
+			Vector3D p1p3(polygon.p3.x - polygon.p1.x, polygon.p3.y - polygon.p1.y, polygon.p3.z - polygon.p1.z);
 			Vector3D normalVector = p1p2.crossProduct(p1p3);
 
 			if (cameraToPolygon.dotProduct(normalVector) < 0) {
-				Tri copy(*polygon.p1, *polygon.p2, *polygon.p3);
+				Tri copy(polygon.p1, polygon.p2, polygon.p3);
 
 				points.push_back(&copy.p1);
 				points.push_back(&copy.p2);
@@ -663,20 +644,34 @@ public:
 	bool OnUserCreate() override
 	{
 		zBuffer = new double[ScreenWidth() * ScreenHeight()];
-		allPolygons = new std::vector<Polygon3D>();
 		cameraPos.z = -150;
 		//cameraPos.y = 27.5;
 		//cameraPos.x = 52;
 
-		std::vector<Polygon3D>* b2polygons = createBox(500, 5, 500, 0, 35, 0);
-		std::vector<ConvexHull*>* hulls = new std::vector<ConvexHull*>();
-		hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b2polygons), 1));
-		RigidBody* b2 = new RigidBody(*hulls, 1, 1, 0.3, true);
-		pEngine.addRigidBody(b2);
+		/*for (int i = 0; i < 5; i++) {
+			for (int j = 0; j < 5; j++) {
+				Rotor r1(Vector3D(0.3, 9.7, 4.3).getUnitVector(), i);
+				Rotor r2(Vector3D(15, 0, 2).getUnitVector(), j);
+				Rotor r12 = r1.applyRotor(r2);
 
-		for (Polygon3D polygon : *b2polygons) {
-			allPolygons->push_back(polygon);
-		}
+				Vector3D p0(1, 0, 0);
+				Vector3D p2 = r2.rotate(r1.rotate(p0));
+				Vector3D p1 = r12.rotate(p0);
+				printf("applied: %f, %f, %f;   no apply: %f, %f, %f\n", p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
+			}
+		}*/
+
+		std::vector<Polygon3D>* b2polygons = createBox(500, 5, 500, 0, 0, 0);
+		std::vector<ConvexHull*>* hulls = new std::vector<ConvexHull*>();
+		hulls->push_back(new ConvexHull(createRigidBodyFromPolygons(b2polygons), 1));
+		RigidBody* b2 = new RigidBody(*hulls, 1, 1, 0.3, true);
+
+		models.push_back(PhysicsObject(&PolyModel(b2polygons, b2->getCenterOfMass()), b2));
+
+
+		pEngine.addRigidBody(b2);
+		pEngine.setGravity(Vector3D(0, 40, 0));
+
 		return true;
 
 		queuedTime = 0;
@@ -689,30 +684,21 @@ public:
 		if (dropTime > 3.5) {
 			dropTime = 0;
 			double x = 5;// 52;
-			double y = -50;
+			double y = -70;
 			double z = 0;
 			std::vector<Polygon3D>* b1polygons = createBox(4, 28, 4, x, y, z);
-			for (Polygon3D p : *b1polygons) {
-				allPolygons->push_back(p);
-			}
 			//Vector3D axis(0, 1, 0);
 			//axis = axis.getUnitVector();
 			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, x, y, z, 3.14159 / 3.0);
 			//Vector3D axis2(0, 0, 1);
 			//axis2 = axis2.getUnitVector();
 			std::vector<Polygon3D>* b2polygons = createBox(15, 5, 15, x, y - 9, z);
-			for (Polygon3D p : *b2polygons) {
-				allPolygons->push_back(p);
-			}
 			//Vector3D axis(0, 1, 0);
 			//axis = axis.getUnitVector();
 			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, x, y, z, 3.14159 / 3.0);
 			//Vector3D axis2(0, 0, 1);
 			//axis2 = axis2.getUnitVector();
 			std::vector<Polygon3D>* b3polygons = createBox(15, 5, 15, x, y + 9, z);
-			for (Polygon3D p : *b3polygons) {
-				allPolygons->push_back(p);
-			}
 			//Vector3D axis(0, 1, 0);
 			//axis = axis.getUnitVector();
 			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis, x, y, z, 3.14159 / 3.0);
@@ -720,10 +706,24 @@ public:
 			//axis2 = axis2.getUnitVector();
 			//transformation3D::rotatePointsAroundArbitraryAxis(&points, axis2, x, y, z, -3.14159 / 3);
 			std::vector<ConvexHull*>* hulls = new std::vector<ConvexHull*>();
-			hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b1polygons), 1));
-			hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b2polygons), 1));
-			hulls->push_back(new ConvexHull(*createRigidBodyFromPolygons(*b3polygons), 1));
+			hulls->push_back(new ConvexHull(createRigidBodyFromPolygons(b1polygons), 1));
+			hulls->push_back(new ConvexHull(createRigidBodyFromPolygons(b2polygons), 1));
+			hulls->push_back(new ConvexHull(createRigidBodyFromPolygons(b3polygons), 1));
 			RigidBody* b1 = new RigidBody(*hulls, 1, 1, 0.3, false);
+
+			std::vector<Polygon3D> polygons;
+
+			for (Polygon3D p : *b1polygons) {
+				polygons.push_back(p);
+			}
+			for (Polygon3D p : *b2polygons) {
+				polygons.push_back(p);
+			}
+			for (Polygon3D p : *b3polygons) {
+				polygons.push_back(p);
+			}
+
+			models.push_back(PhysicsObject(&PolyModel(&polygons, b1->getCenterOfMass()), b1));
 			pEngine.addRigidBody(b1);
 			delete b1polygons;
 			delete b2polygons;
@@ -785,7 +785,13 @@ public:
 		auto t4 = std::chrono::system_clock::now();
 		static double t = 0;
 		t += fElapsedTime;
-		drawPolygons(allPolygons, cameraPos, yAng, xAng, fv, true);
+
+		for (PhysicsObject model : models) {
+			PolyModel* polygons = model.getModelToDraw();
+			//if (model.outOfView()) {
+				drawPolygons(polygons->getPolygons(), cameraPos, yAng, xAng, fv, true);
+			//}
+		}
 
 		//draw octree
 		/*std::vector<OctreeNode*> nodes;

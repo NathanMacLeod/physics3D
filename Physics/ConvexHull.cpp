@@ -1,7 +1,7 @@
 #include "ConvexHull.h"
 
-ConvexHull::ConvexHull(const std::vector<RigidSurface*>& surfaces, double density) {
-	this->surfaces = surfaces;	
+ConvexHull::ConvexHull(const std::vector<RigidSurface*>* surfaces, double density) {
+	this->surfaces = *surfaces;	
 
 	findBodyMassAndInertia(density);
 	findColPointsEdges();
@@ -25,6 +25,10 @@ ConvexHull::Edge::Edge(Vector3D* p1, Vector3D* p2) {
 	this->p1 = p1;
 	this->p2 = p2;
 	inverseMagnitude = 1.0 / Vector3D(*p1, *p2).getMagnitude();
+}
+
+Vector3D* ConvexHull::getCOMPointer() {
+	return &centerOfMass;
 }
 
 void ConvexHull::findColPointsEdges() {

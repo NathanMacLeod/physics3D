@@ -20,6 +20,8 @@ public:
 	Vector3D sub(const Vector3D vector) const;
 	Vector3D multiply(double scalar) const;
 	bool notZero() const;
+	bool operator!=(const Vector3D& b);
+	bool operator==(const Vector3D& b);
 };
 
 #endif

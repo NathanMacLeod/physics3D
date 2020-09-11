@@ -16,13 +16,15 @@ RigidBody::RigidBody(const std::vector<ConvexHull*>& hulls, double density, doub
 		for (Vector3D* p : *hull->getColPoints()) {
 			pointsToTransform.push_back(p);
 		}
+		pointsToTransform.push_back(hull->getCOMPointer());
 	}
+	
 
 	findCollisionRadius();
 	
 	if (!fixed) {
-		velocity = Vector3D(0, 0, 0);
-		angularVelocity = Vector3D(0, 5, 0.1);
+		//velocity = Vector3D(0, 0, 0);
+		angularVelocity = Vector3D(0, 12, 0.01);
 	}
 
 	orientationPoint1 = Vector3D(centerOfMass.x, centerOfMass.y - 1, centerOfMass.z);
@@ -30,12 +32,28 @@ RigidBody::RigidBody(const std::vector<ConvexHull*>& hulls, double density, doub
 
 	pointsToTransform.push_back(&orientationPoint1);
 	pointsToTransform.push_back(&orientationPoint2);
-	pointsToTransform.push_back(&centerOfMass);
+	//pointsToTransform.push_back(&centerOfMass);
+
+	copyPoints();
+}
+
+RigidBody::RigidBody() {
+
 }
 
 RigidBody::~RigidBody() {
 	for (ConvexHull* h : hulls) {
 		delete h;
+	}
+}
+
+Rotor RigidBody::getOrientation() {
+	return orientation;
+}
+
+void RigidBody::copyPoints() {
+	for (Vector3D* p : pointsToTransform) {
+		pointsOG.push_back(p->sub(centerOfMass));
 	}
 }
 
@@ -137,6 +155,7 @@ void RigidBody::acclerateLineraly(const Vector3D changeInVelocity) {
 }
 
 void RigidBody::translate(const Vector3D translation) {
+	centerOfMass = centerOfMass.add(translation);
 	transformation3D::translatePoints(&pointsToTransform, translation);
 }
 
@@ -144,11 +163,19 @@ void RigidBody::moveInTime(double time) {
 	if (fixed && false)
 		return;
 	double rotationMagnitude = angularVelocity.getMagnitude() * time;
-	Vector3D translation = velocity.multiply(time);
+	Vector3D linMove = velocity.multiply(time);
+	centerOfMass = centerOfMass.add(linMove);
 	Vector3D rotationAxis = angularVelocity.getUnitVector();
-	transformation3D::translatePoints(&pointsToTransform, translation);
-	if(rotationMagnitude != 0)
-		transformation3D::rotatePointsAroundArbitraryAxis(&pointsToTransform, rotationAxis, centerOfMass.x, centerOfMass.y, centerOfMass.z, rotationMagnitude);
+	if (rotationMagnitude != 0) {
+		orientation = orientation.applyRotor(Rotor(rotationAxis, rotationMagnitude));
+		for (int i = 0; i < pointsOG.size(); i++) {
+			*pointsToTransform.at(i) = centerOfMass.add(orientation.rotate(pointsOG.at(i)));
+		}
+	}
+	else {
+		transformation3D::translatePoints(&pointsToTransform, linMove);
+	}
+	
 }
 
 bool RigidBody::getFixed() {
@@ -200,16 +227,15 @@ void RigidBody::applyImpulseAtPosition(const Vector3D impulse, const Vector3D po
 }
 
 void RigidBody::findCollisionRadius() {
-	double greatestRadiusSquared = 0;
+	double radius = 0;
 	for (Vector3D* p : pointsToTransform) {
-		double squaredRadius = (centerOfMass.x - p->x) * (centerOfMass.x - p->x) + (centerOfMass.y - p->y) * (centerOfMass.y - p->y)
-			+ (centerOfMass.z - p->z) * (centerOfMass.z - p->z);
-		if (squaredRadius > greatestRadiusSquared)
-			greatestRadiusSquared = squaredRadius;
+		double dist = p->sub(centerOfMass).getMagnitude();
+		if (dist > radius)
+			radius = dist;
 	}
 	
-	collisionRadiusSquared = greatestRadiusSquared;
-	collisionRadius = sqrt(greatestRadiusSquared);
+	collisionRadiusSquared = radius * radius;
+	collisionRadius = radius;
 	
 }
 

@@ -6,6 +6,8 @@
 #include "Vector3D.h"
 #include <iostream>
 
+#include "Rotor.h"
+
 class transformation3D {
 public:
 	static void translatePoints(std::vector<Vector3D*>* points, const Vector3D translation) {
@@ -102,22 +104,21 @@ public:
 			cosTheta = cos(theta);
 			sinTheta = sin(theta);
 		}
-		//std::cout << "axisVector x:" << axisUnitVector.x << " y:" << axisUnitVector.y << " z:" << axisUnitVector.z << "\n";
-		Vector3D pointVector(p->x - xPos, p->y - yPos, p->z - zPos);
-		//std::cout << "PointVector x:" << (double) pointVector.x << " y:" << (double) pointVector.y << " z:" << (double) pointVector.z << "\n";
+
+		//rodrigues' rotation formula 
+		/*Vector3D pointVector(p->x - xPos, p->y - yPos, p->z - zPos);
 		Vector3D vParralel = axisUnitVector.multiply(pointVector.dotProduct(axisUnitVector));
-		//std::cout << "vParralel x:" << vParralel.x << " y:" << vParralel.y << " z:" << vParralel.z << "\n";
 		Vector3D vPerpendicular = pointVector.sub(vParralel);
-		//std::cout << "vPerpendicular x:" << vPerpendicular.x << " y:" << vPerpendicular.y << " z:" << vPerpendicular.z << "\n";
 		Vector3D crossedVector = axisUnitVector.crossProduct(pointVector);
-		//std::cout << "crossVector x:" << b.x << " y:" << b.y << " z:" << b.z << "\n";
 		Vector3D comp1 = vPerpendicular.multiply(cosTheta);
 		Vector3D comp2 = crossedVector.multiply(sinTheta);
 		Vector3D newPointVector = comp1.add(comp2).add(vParralel);
-		//std::cout << "newPointVector x:" << (double) e.x << " y:" << (double) e.y << " z:" << (double) e.z << "\n" << "\n";
 		output->x = newPointVector.x + xPos;
 		output->y = newPointVector.y + yPos;
-		output->z = newPointVector.z + zPos;
+		output->z = newPointVector.z + zPos;*/
+
+		Vector3D pointVector(p->x - xPos, p->y - yPos, p->z - zPos);
+		*output = Rotor(axisUnitVector, theta).rotate(pointVector).add(Vector3D(xPos, yPos, zPos));
 	}
 
 	static void rotatePointsAroundArbitraryAxis(std::vector<Vector3D*>* points, const Vector3D axisUnitVector, double xPos, double yPos, double zPos, double theta, double cosTheta=-1, double sinTheta=-1) {

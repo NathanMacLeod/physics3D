@@ -12,7 +12,7 @@ class RigidSurface {
 
 	void caclulateInverseSegmentMagnitudes();
 public:
-	RigidSurface(const std::vector<Vector3D*>& points, const Vector3D normalVector);
+	RigidSurface(const std::vector<Vector3D>* points, const Vector3D normalVector);
 	RigidSurface(const RigidSurface& surface);
 	std::vector<Vector3D*>* getPoints();
 	Vector3D getUnitNorm();

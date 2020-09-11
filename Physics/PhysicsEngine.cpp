@@ -1,5 +1,6 @@
 #include "PhysicsEngine.h"
 #include <iostream>
+#include <chrono>
 
 PhysicsEngine::PhysicsEngine(double timestep) {
 	this->gravity = Vector3D(0, 20, 0);//default
@@ -37,7 +38,7 @@ void PhysicsEngine::addRigidBody(RigidBody* body) {
 
 bool PhysicsEngine::removeRigidBody(RigidBody* body) {
 	for (int i = 0; i < rigidBodies.size(); i++) {
-		if (rigidBodies.at(i) == body) {
+		if (rigidBodies.at(i) == body) {		
 			rigidBodies.erase(rigidBodies.begin() + i);
 			delete body;
 			return true;
@@ -125,6 +126,9 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 }
 
 void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body2) {
+	static double narrowTests = 0;
+	static double satTests = 0;
+	static double collApply = 0;
 	//check if bodies already tested against each other in this physics tick
 	if (body1->alreadyTestedAgainst(body2->getID())) {
 		return;
@@ -134,9 +138,14 @@ void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body
 		body2->addTestedAgainst(body1->getID());
 	}
 
+	auto t1 = std::chrono::system_clock::now();
 	if (!body1->bodiesInCollisionRange(body2)) {
+		auto t2 = std::chrono::system_clock::now();
+		std::chrono::duration<float> t = t2 - t1;
+		narrowTests += t.count();
 		return;
 	}
+	auto t2 = std::chrono::system_clock::now();
 
 	std::vector<ConvexHull::ColPointInfo> supPoints;
 	Vector3D norm;
@@ -152,8 +161,9 @@ void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body
 	for (ConvexHull* hullA : *body1->getHulls()) {
 		for (ConvexHull* hullB : *body2->getHulls()) {
 
-			if (!hullA->hullsInCollisionRange(hullB))
+			if (!hullA->hullsInCollisionRange(hullB)) {
 				continue;
+			}
 
 			int winningCol = -1; //, 0 is A, 1 B, 2 E
 
@@ -239,6 +249,7 @@ void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body
 			}
 		}
 	}
+	auto t3 = std::chrono::system_clock::now();
 	if (colDepth != -1) {
 
 		bool contactColl = false;
@@ -274,7 +285,17 @@ void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body
 		}
 
 		pushBodiesApart(collider, collidee, norm, (contactColl) ? 0.15 * colDepth : colDepth);
+		auto t4 = std::chrono::system_clock::now();
 
+		std::chrono::duration<float> narrow = t2 - t1;
+		std::chrono::duration<float> sat = t3 - t2;
+		std::chrono::duration<float> resolve = t4 - t3;
+
+		narrowTests += narrow.count();
+		satTests += sat.count();
+		collApply += resolve.count();
+
+		printf("narrowTest: %f, satTest: %f, collApply: %f\n", narrowTests, satTests, collApply);
 	}
 }
 
@@ -288,12 +309,16 @@ void PhysicsEngine::iterateEngine(double secondsPassed) {
 }
 
 void PhysicsEngine::iterateEngineTimestep() {
+	auto t1 = std::chrono::system_clock::now();
 	Vector3D gravityAcceleration(gravity.x * timestep, gravity.y * timestep, gravity.z * timestep);
 	for (RigidBody* body : rigidBodies) {
 		body->acclerateLineraly(gravityAcceleration);
 		body->moveInTime(timestep);
 		body->clearTestedList();
 	}
+	auto t2 = std::chrono::system_clock::now();
+	auto t3 = t2;
+	double colltime = 0;
 
 	if (useOctree) {
 
@@ -305,13 +330,19 @@ void PhysicsEngine::iterateEngineTimestep() {
 		std::vector<OctreeNode*> octreeLeafs;
 		root.getCollisionLeafs(&octreeLeafs);
 
+		t3 = std::chrono::system_clock::now();
+
 		for (OctreeNode* leaf : octreeLeafs) {
 			for (int i = 0; i < leaf->getBodies()->size(); i++) {
 				for (int j = i + 1; j < leaf->getBodies()->size(); j++) {
 					RigidBody* body1 = leaf->getBodies()->at(i);
 					RigidBody* body2 = leaf->getBodies()->at(j);
 
+					auto t4 = std::chrono::system_clock::now();
 					detectAndResolveCollisions(body1, body2);
+					auto t5 = std::chrono::system_clock::now();
+					std::chrono::duration<float> tpassed = t5 - t4;
+					colltime += tpassed.count();
 				}
 			}
 		}
@@ -327,4 +358,9 @@ void PhysicsEngine::iterateEngineTimestep() {
 			}
 		}
 	}
+
+	std::chrono::duration<float> updateT = t2 - t1;
+	std::chrono::duration<float> octreT = t3 - t2;
+
+	//printf("update bodies: %f, Octree: %f, collisionDetection+resolution: %f\n", updateT.count(), octreT.count(), colltime);
 }

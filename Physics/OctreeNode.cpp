@@ -10,7 +10,6 @@ OctreeNode::OctreeNode(Vector3D pos, double size, double minSize) {
 }
 
 OctreeNode::OctreeNode() {
-	printf("hello octreenode default constructor\n");
 	size = 0;
 	minSize = 0;
 	leafNode = true;

@@ -39,10 +39,11 @@ private:
 	void findColPointsEdges();
 	void findMaxMin(Vector3D n, double* max, double* min, Vector3D* maxP, Vector3D* minP);
 public:
-	ConvexHull(const std::vector<RigidSurface*>& surfaces, double density);
+	ConvexHull(const std::vector<RigidSurface*>* surfaces, double density);
 	~ConvexHull();
 
 	Vector3D getCenterOfMass();
+	Vector3D* getCOMPointer();
 	std::vector<Vector3D*>* getColPoints();
 	double getCollisionRadius();
 	double* getInertia();

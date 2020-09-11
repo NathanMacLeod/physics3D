@@ -6,19 +6,23 @@
 #include <inttypes.h>;
 #include "ConvexHull.h";
 #include "CollisionInfo.h";
+#include "../Math/Rotor.h";
 
 class RigidBody {
 
 private:
 	std::vector<Vector3D*> pointsToTransform;
+	std::vector<Vector3D> pointsOG;
 	std::vector<ConvexHull*> hulls;
 	std::vector<uint16_t> testedList;
 	std::vector<CollisionInfo> collHistory;
 	Vector3D centerOfMass;
 	Vector3D velocity;
 	Vector3D angularVelocity;
+	Rotor orientation;
 	Vector3D orientationPoint1;
 	Vector3D orientationPoint2;
+
 	double collisionRadius;
 	double collisionRadiusSquared;
 	double mass;
@@ -30,12 +34,14 @@ private:
 	bool trackHistory;
 	uint16_t ID;
 
+	void copyPoints();
 	void findBodyMassAndInertia(double density);
 	void findCollisionRadius();
 	Vector3D findVectorRelativeToBodyFrame(const Vector3D vector);
 public:
 
 	RigidBody(const std::vector<ConvexHull*>& hulls, double density, double friction, double resistution, bool fixed);
+	RigidBody();
 	~RigidBody();
 	bool bodiesInCollisionRange(RigidBody* body);
 	double getCollisionRadius() const;
@@ -68,6 +74,7 @@ public:
 	bool trackingCollHistory();
 	void setTrackCollHistory(bool b);
 	bool getFixed();
+	Rotor getOrientation();
 };
 
 #endif

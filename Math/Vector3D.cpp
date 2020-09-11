@@ -19,6 +19,14 @@ Vector3D::Vector3D(Vector3D a, Vector3D b) {
 	z = b.z - a.z;
 }
 
+bool Vector3D::operator==(const Vector3D& b) {
+	return x == b.x && y == b.y && z == b.z;
+}
+
+bool Vector3D::operator!=(const Vector3D& b) {
+	return x != b.x || y != b.y || z != b.z;
+}
+
 double Vector3D::getMagnitudeSquared() const {
 	return x * x + y * y + z * z;
 }
