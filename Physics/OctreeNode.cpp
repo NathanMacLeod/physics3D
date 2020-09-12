@@ -9,15 +9,6 @@ OctreeNode::OctreeNode(Vector3D pos, double size, double minSize) {
 	}
 }
 
-OctreeNode::OctreeNode() {
-	size = 0;
-	minSize = 0;
-	leafNode = true;
-	for (int i = 0; i < N_CHILD; i++) {
-		children[i] = nullptr;
-	}
-}
-
 OctreeNode::~OctreeNode() {
 	if (leafNode) {
 		return;

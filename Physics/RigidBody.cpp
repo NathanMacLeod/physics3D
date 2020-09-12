@@ -21,18 +21,6 @@ RigidBody::RigidBody(const std::vector<ConvexHull*>& hulls, double density, doub
 	
 
 	findCollisionRadius();
-	
-	if (!fixed) {
-		//velocity = Vector3D(0, 0, 0);
-		angularVelocity = Vector3D(0, 12, 0.01);
-	}
-
-	orientationPoint1 = Vector3D(centerOfMass.x, centerOfMass.y - 1, centerOfMass.z);
-	orientationPoint2 = Vector3D(centerOfMass.x + 1, centerOfMass.y, centerOfMass.z);
-
-	pointsToTransform.push_back(&orientationPoint1);
-	pointsToTransform.push_back(&orientationPoint2);
-	//pointsToTransform.push_back(&centerOfMass);
 
 	copyPoints();
 }
@@ -143,9 +131,14 @@ void RigidBody::findBodyMassAndInertia(double density) {
 		inertiaTensor[8] += hTens[8] + hull->getMass() * (hullRel.x * hullRel.x + hullRel.y * hullRel.y);
 
 	}
-//	for (int i = 0; i < 9; i++) {
-//		printf("%f\n", inertiaTensor[i]);
-//	}
+}
+
+void RigidBody::setVelocity(Vector3D vel) {
+	this->velocity = vel;
+}
+
+void RigidBody::setAngVelocity(Vector3D aVel) {
+	this->angularVelocity = aVel;
 }
 
 void RigidBody::acclerateLineraly(const Vector3D changeInVelocity) {
@@ -191,15 +184,7 @@ double iExp(double base, int x) {
 }
 
 Vector3D RigidBody::findVectorRelativeToBodyFrame(const Vector3D vector) {
-	Vector3D orientationVector1(centerOfMass, orientationPoint1);
-	Vector3D orientationVector2(centerOfMass, orientationPoint2);
-	Vector3D orientationVector3 = orientationVector1.crossProduct(orientationVector2);
-
-	double negYVal = orientationVector1.dotProduct(vector);
-	double xVal = orientationVector2.dotProduct(vector);
-	double zVal = orientationVector3.dotProduct(vector);
-
-	return Vector3D(xVal, -negYVal, zVal);
+	return orientation.getInverse().rotate(vector);
 }
 
 double RigidBody::findInverseInertiaOfAxis(const Vector3D inputAxis) {	

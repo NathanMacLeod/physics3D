@@ -19,7 +19,7 @@ private:
 	void pushBodiesApart(RigidBody* collider, RigidBody* collidee, const Vector3D nV, double colDepth);
 	void resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Vector3D colPoint, const std::vector<ConvexHull::ColPointInfo> supPoints, double restitution);
 	void detectAndResolveCollisions(RigidBody* body1, RigidBody* body2);
-	OctreeNode root;
+	OctreeNode* root;
 public:
 	PhysicsEngine(double timestep);
 	void setGravity(Vector3D gravity);

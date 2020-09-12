@@ -123,24 +123,34 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="PhysicsEngine.cpp" />
-    <ClCompile Include="Polygon3D.cpp" />
-    <ClCompile Include="RigidBody.cpp" />
-    <ClCompile Include="RigidSurface.cpp" />
-    <ClCompile Include="simpleDrawTest.cpp" />
-    <ClCompile Include="tests3d.cpp" />
-    <ClCompile Include="Vector3D.cpp" />
+    <ClCompile Include="Math\Rotor.cpp" />
+    <ClCompile Include="Math\Vector3D.cpp" />
+    <ClCompile Include="OLCEngine\olcExampleProgram.cpp" />
+    <ClCompile Include="OLCEngine\PhysicsObject.cpp" />
+    <ClCompile Include="OLCEngine\Polygon3D.cpp" />
+    <ClCompile Include="OLCEngine\PolyModel.cpp" />
+    <ClCompile Include="Physics\CollisionInfo.cpp" />
+    <ClCompile Include="Physics\ConvexHull.cpp" />
+    <ClCompile Include="Physics\OctreeNode.cpp" />
+    <ClCompile Include="Physics\PhysicsEngine.cpp" />
+    <ClCompile Include="Physics\RigidBody.cpp" />
+    <ClCompile Include="Physics\RigidSurface.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ConsoleEngine.h" />
-    <ClInclude Include="Color.h" />
-    <ClInclude Include="PhysicsEngine.h" />
-    <ClInclude Include="Polygon3D.h" />
-    <ClInclude Include="Point.h" />
-    <ClInclude Include="RigidBody.h" />
-    <ClInclude Include="RigidSurface.h" />
-    <ClInclude Include="transformation3D.h" />
-    <ClInclude Include="Vector3D.h" />
+    <ClInclude Include="Math\Rotor.h" />
+    <ClInclude Include="Math\transformation3D.h" />
+    <ClInclude Include="Math\Vector3D.h" />
+    <ClInclude Include="OLCEngine\PixelEngine3D.h" />
+    <ClInclude Include="OLCEngine\olcPixelGameEngine.h" />
+    <ClInclude Include="OLCEngine\PhysicsObject.h" />
+    <ClInclude Include="OLCEngine\Polygon3D.h" />
+    <ClInclude Include="OLCEngine\PolyModel.h" />
+    <ClInclude Include="Physics\CollisionInfo.h" />
+    <ClInclude Include="Physics\ConvexHull.h" />
+    <ClInclude Include="Physics\OctreeNode.h" />
+    <ClInclude Include="Physics\PhysicsEngine.h" />
+    <ClInclude Include="Physics\RigidBody.h" />
+    <ClInclude Include="Physics\RigidSurface.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

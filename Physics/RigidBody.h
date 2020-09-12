@@ -20,8 +20,6 @@ private:
 	Vector3D velocity;
 	Vector3D angularVelocity;
 	Rotor orientation;
-	Vector3D orientationPoint1;
-	Vector3D orientationPoint2;
 
 	double collisionRadius;
 	double collisionRadiusSquared;
@@ -61,6 +59,8 @@ public:
 	double getFriction() const;
 	double getRestitution() const;
 	uint16_t getID();
+	void setVelocity(Vector3D vel);
+	void setAngVelocity(Vector3D aVel);
 	void setID(uint16_t ID);
 	void translate(const Vector3D translation);
 	void acclerateLineraly(const Vector3D changeInVelocity);

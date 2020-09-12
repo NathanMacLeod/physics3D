@@ -9,6 +9,7 @@ PhysicsEngine::PhysicsEngine(double timestep) {
 	staticVel = 0.1;
 	setOctree(true);
 	fpsCap = 1;
+	root = nullptr;
 }
 
 void PhysicsEngine::setGravity(Vector3D gravity) {
@@ -28,7 +29,7 @@ void PhysicsEngine::setOctree(bool useOctree, Vector3D octreeOrigin, double octr
 }
 
 OctreeNode* PhysicsEngine::getOctreeRoot() {
-	return &root;
+	return root;
 }
 
 void PhysicsEngine::addRigidBody(RigidBody* body) {
@@ -295,13 +296,15 @@ void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body
 		satTests += sat.count();
 		collApply += resolve.count();
 
-		printf("narrowTest: %f, satTest: %f, collApply: %f\n", narrowTests, satTests, collApply);
+		//printf("narrowTest: %f, satTest: %f, collApply: %f\n", narrowTests, satTests, collApply);
 	}
 }
 
 void PhysicsEngine::iterateEngine(double secondsPassed) {
 	static double timeBuff = 0;
 	timeBuff += secondsPassed;
+	double maxBuff = std::fmax(0.1, timestep);
+	timeBuff = std::fmin(maxBuff, timeBuff);
 	while (timeBuff >= timestep) {
 		timeBuff -= timestep;
 		iterateEngineTimestep();
@@ -322,13 +325,16 @@ void PhysicsEngine::iterateEngineTimestep() {
 
 	if (useOctree) {
 
-		root = OctreeNode(octreeOrigin, octreeSize, octreeMin);
-		for (RigidBody* b : rigidBodies) {
-			root.addBody(b);
+		if (root != nullptr) {
+			delete root;
 		}
-		root.expandNode();
+		root = new OctreeNode(octreeOrigin, octreeSize, octreeMin);
+		for (RigidBody* b : rigidBodies) {
+			root->addBody(b);
+		}
+		root->expandNode();
 		std::vector<OctreeNode*> octreeLeafs;
-		root.getCollisionLeafs(&octreeLeafs);
+		root->getCollisionLeafs(&octreeLeafs);
 
 		t3 = std::chrono::system_clock::now();
 

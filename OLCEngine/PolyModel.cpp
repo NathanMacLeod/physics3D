@@ -72,9 +72,20 @@ std::vector<Polygon3D>* PolyModel::getPolygons() {
 }
 
 //camera dir should be unit length
-bool PolyModel::outOfView(Rotor cameraDir, Vector3D cameraPos, double fov, int screenWidth, int screenHeight) {
-	return true;
-	//double zDepth = 
+bool PolyModel::outOfView(Vector3D cameraPos, Rotor cameraDir, double fov, int screenWidth, int screenHeight) {
+	Vector3D relPos = cameraDir.getInverse().rotate(position.sub(cameraPos));
+	double z = relPos.z + radius;
+	if (z <= 0) {
+		return true;
+	}
 
-	//double maxX = 
+	double maxX = (relPos.x + radius) * fov / z;
+	double minX = (relPos.x - radius) * fov / z;
+	double maxY = (relPos.y + radius) * fov / z;
+	double minY = (relPos.y - radius) * fov / z;
+
+	if (maxX < -screenWidth/2 || minX > screenWidth/2 || maxY < -screenHeight/2 || minY > screenHeight/2) {
+		return true;
+	}
+	return false;
 }

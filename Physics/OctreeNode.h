@@ -17,7 +17,6 @@ private:
 	static void getAllNodes(OctreeNode* curr, std::vector<OctreeNode*>* out); //for debug
 public:
 	~OctreeNode();
-	OctreeNode();
 	OctreeNode(Vector3D pos, double size, double minSize);
 	double getSize();
 	Vector3D getPos();

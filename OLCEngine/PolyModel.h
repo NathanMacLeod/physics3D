@@ -23,5 +23,5 @@ public:
 	Vector3D getPos();
 	Rotor getOrientation();
 	std::vector<Polygon3D>* getPolygons();
-	bool outOfView(Rotor cameraDir, Vector3D cameraPos, double fov, int screenWidth, int screenHeight);
+	bool outOfView(Vector3D cameraPos, Rotor cameraDir, double fov, int screenWidth, int screenHeight);
 };

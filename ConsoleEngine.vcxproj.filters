@@ -28,6 +28,15 @@
     <ClCompile Include="OLCEngine\Polygon3D.cpp">
       <Filter>OLCEngine</Filter>
     </ClCompile>
+    <ClCompile Include="Math\Rotor.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="OLCEngine\PhysicsObject.cpp">
+      <Filter>OLCEngine</Filter>
+    </ClCompile>
+    <ClCompile Include="OLCEngine\PolyModel.cpp">
+      <Filter>OLCEngine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Math\transformation3D.h">
@@ -58,6 +67,18 @@
       <Filter>OLCEngine</Filter>
     </ClInclude>
     <ClInclude Include="OLCEngine\Polygon3D.h">
+      <Filter>OLCEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Rotor.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="OLCEngine\PhysicsObject.h">
+      <Filter>OLCEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="OLCEngine\PolyModel.h">
+      <Filter>OLCEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="OLCEngine\PixelEngine3D.h">
       <Filter>OLCEngine</Filter>
     </ClInclude>
   </ItemGroup>
