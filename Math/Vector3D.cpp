@@ -20,11 +20,11 @@ Vector3D::Vector3D(Vector3D a, Vector3D b) {
 }
 
 bool Vector3D::operator==(const Vector3D& b) {
-	return x == b.x && y == b.y && z == b.z;
+	return this->sub(b).getMagnitudeSquared() < 0.000000001;
 }
 
 bool Vector3D::operator!=(const Vector3D& b) {
-	return x != b.x || y != b.y || z != b.z;
+	return this->sub(b).getMagnitudeSquared() >= 0.000000001;
 }
 
 double Vector3D::getMagnitudeSquared() const {

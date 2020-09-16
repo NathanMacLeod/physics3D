@@ -55,9 +55,9 @@ Rotor Rotor::getInverse() {
 }
 
 bool Rotor::operator!=(const Rotor& r) {
-	return a != a || b != b || c != c || d != d;
+	return a != r.a || b != r.b || c != r.c || d != r.d;
 }
 
 bool Rotor::operator==(const Rotor& r) {
-	return a == a && b == b && c == c && d == d;
+	return a == r.a && b == r.b && c == r.c && d == r.d;
 }

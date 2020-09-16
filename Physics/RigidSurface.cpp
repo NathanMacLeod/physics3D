@@ -1,11 +1,15 @@
 #include "RigidSurface.h"
 
-RigidSurface::RigidSurface(const std::vector<Vector3D>* points, const Vector3D normalVector) {
+RigidSurface::RigidSurface(const std::vector<Vector3D>* points, const Vector3D normalVector, bool interiorSurface) {
 	//normalVector should have unit length
 	for (Vector3D p : *points) {
 		this->points.push_back(new Vector3D(p.x, p.y, p.z));
 	}
 	Vector3D cross = Vector3D(points->at(0), points->at(1)).crossProduct(Vector3D(points->at(1), points->at(2)));
+	if (cross.dotProduct(normalVector) < 0) {
+		reverseOrder();
+	}
+	this->interiorSurface = interiorSurface;
 	nVInverseMag = ((cross.dotProduct(normalVector) < 0) ? -1 : 1) / cross.getMagnitude();
 	caclulateInverseSegmentMagnitudes();
 }
@@ -14,8 +18,16 @@ RigidSurface::RigidSurface(const RigidSurface& surface) {
 	for (Vector3D* p : surface.points) {
 		points.push_back(new Vector3D(p->x, p->y, p->z));
 	}
-	nVInverseMag = surface.nVInverseMag;
+	//nVInverseMag = surface.nVInverseMag;
 	caclulateInverseSegmentMagnitudes();
+}
+
+void RigidSurface::reverseOrder() {
+	std::vector<Vector3D*> reverse;
+	for (int i = points.size() - 1; i >= 0; i--) {
+		reverse.push_back(points.at(i));
+	}
+	points = reverse;
 }
 
 void RigidSurface::caclulateInverseSegmentMagnitudes() {
@@ -32,6 +44,10 @@ double RigidSurface::getInverseSegmentMagnitude(int i) {
 		return inverseSegmentMagnitudes.at(i);
 	else
 		return -1;
+}
+
+bool RigidSurface::isInteriorSurface() {
+	return interiorSurface;
 }
 
 Vector3D RigidSurface::getUnitNorm() {

@@ -41,7 +41,6 @@ bool PhysicsEngine::removeRigidBody(RigidBody* body) {
 	for (int i = 0; i < rigidBodies.size(); i++) {
 		if (rigidBodies.at(i) == body) {		
 			rigidBodies.erase(rigidBodies.begin() + i);
-			delete body;
 			return true;
 		}
 	}
@@ -320,23 +319,33 @@ void PhysicsEngine::iterateEngineTimestep() {
 		body->clearTestedList();
 	}
 	auto t2 = std::chrono::system_clock::now();
-	auto t3 = t2;
-	double colltime = 0;
+	double octreeTime = 0;
 
 	if (useOctree) {
 
 		if (root != nullptr) {
 			delete root;
 		}
+		auto t3 = std::chrono::system_clock::now();
 		root = new OctreeNode(octreeOrigin, octreeSize, octreeMin);
+		auto t4 = std::chrono::system_clock::now();
 		for (RigidBody* b : rigidBodies) {
 			root->addBody(b);
 		}
+		auto t5 = std::chrono::system_clock::now();
 		root->expandNode();
+		auto t6 = std::chrono::system_clock::now();
 		std::vector<OctreeNode*> octreeLeafs;
 		root->getCollisionLeafs(&octreeLeafs);
+		auto t7 = std::chrono::system_clock::now();
 
-		t3 = std::chrono::system_clock::now();
+		std::chrono::duration<float> del = t3 - t2;
+		std::chrono::duration<float> create = t4 - t3;
+		std::chrono::duration<float> push = t5 - t4;
+		std::chrono::duration<float> expand = t6 - t5;
+		std::chrono::duration<float> findleaf = t7 - t6;
+
+		//printf("del: %f, cre: %f, push: %f, expa: %f, leaf: %f\n", del.count(), create.count(), push.count(), expand.count(), findleaf.count());
 
 		for (OctreeNode* leaf : octreeLeafs) {
 			for (int i = 0; i < leaf->getBodies()->size(); i++) {
@@ -344,11 +353,7 @@ void PhysicsEngine::iterateEngineTimestep() {
 					RigidBody* body1 = leaf->getBodies()->at(i);
 					RigidBody* body2 = leaf->getBodies()->at(j);
 
-					auto t4 = std::chrono::system_clock::now();
 					detectAndResolveCollisions(body1, body2);
-					auto t5 = std::chrono::system_clock::now();
-					std::chrono::duration<float> tpassed = t5 - t4;
-					colltime += tpassed.count();
 				}
 			}
 		}
@@ -365,8 +370,10 @@ void PhysicsEngine::iterateEngineTimestep() {
 		}
 	}
 
-	std::chrono::duration<float> updateT = t2 - t1;
-	std::chrono::duration<float> octreT = t3 - t2;
+	auto t3 = std::chrono::system_clock::now();
 
-	//printf("update bodies: %f, Octree: %f, collisionDetection+resolution: %f\n", updateT.count(), octreT.count(), colltime);
+	std::chrono::duration<float> update = t2 - t1;
+	std::chrono::duration<float> checks = t3 - t2;
+
+	//printf("Update time: %f, Octree time: %f, other: %f\n", update.count(), octreeTime, checks.count() - octreeTime);
 }

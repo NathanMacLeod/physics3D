@@ -200,7 +200,7 @@ public:
 		for (PhysicsObject model : models) {
 			PolyModel* polygons = model.getModelToDraw();
 			if (!polygons->outOfView(cameraPos, cameraOrientation, fv, ScreenWidth(), ScreenHeight())) {
-				drawPolygons(polygons->getPolygons(), cameraPos, cameraOrientation, fv, true);
+				drawPolygons(polygons->getPolygons(), cameraPos, cameraOrientation, fv, false);
 			}
 		}
 

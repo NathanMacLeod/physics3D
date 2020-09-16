@@ -20,8 +20,9 @@ public:
 		Vector3D* p1;
 		Vector3D* p2;
 		double inverseMagnitude;
+		bool interiorEdge;
 
-		Edge(Vector3D* p1, Vector3D* p2);
+		Edge(Vector3D* p1, Vector3D* p2, bool interiorEdge);
 	};
 
 private:
