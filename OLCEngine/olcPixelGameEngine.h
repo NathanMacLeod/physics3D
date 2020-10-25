@@ -561,6 +561,10 @@ namespace olc
 		int32_t GetMouseX();
 		// Get Mouse Y coordinate in "pixel" space
 		int32_t GetMouseY();
+		//Get Mouse X movement since last frame
+		int32_t GetMouseDeltaX();
+		//Get Mouse Y movement since last frame
+		int32_t GetMouseDeltaY();
 		// Get Mouse Wheel Delta
 		int32_t GetMouseWheel();
 
@@ -683,8 +687,10 @@ namespace olc
 		olc::vf2d	vInvScreenSize        = { 1.0f / 256.0f, 1.0f / 240.0f };
 		olc::vi2d	vPixelSize            = { 4, 4 };
 		olc::vi2d	vMousePos             = { 0, 0 };
+		olc::vi2d	rawMouseDelta		  = { 0, 0 };
 		int32_t		nMouseWheelDelta      = 0;
 		olc::vi2d	vMousePosCache        = { 0, 0 };
+		olc::vi2d	rawMouseDeltaCache    = { 0, 0 };
 		int32_t		nMouseWheelDeltaCache = 0;
 		olc::vi2d	vWindowSize           = { 0, 0 };
 		olc::vi2d	vViewPos              = { 0, 0 };
@@ -729,6 +735,7 @@ namespace olc
 	public:
 		// "Break In" Functions
 		void olc_UpdateMouse(int32_t x, int32_t y);
+		void olc_UpdateRawMouse(int32_t x, int32_t y);
 		void olc_UpdateMouseWheel(int32_t delta);
 		void olc_UpdateWindowSize(int32_t x, int32_t y);
 		void olc_UpdateViewport();
@@ -1342,6 +1349,12 @@ namespace olc
 
 	int32_t PixelGameEngine::GetMouseY()
 	{ return vMousePos.y; }
+
+	int32_t PixelGameEngine::GetMouseDeltaX()
+	{ return rawMouseDelta.x; }
+
+	int32_t PixelGameEngine::GetMouseDeltaY()
+	{ return rawMouseDelta.y; }
 
 	int32_t PixelGameEngine::GetMouseWheel()
 	{ return nMouseWheelDelta; }
@@ -2094,6 +2107,11 @@ namespace olc
 		if (vMousePosCache.y < 0) vMousePosCache.y = 0;
 	}
 
+	void PixelGameEngine::olc_UpdateRawMouse(int32_t x, int32_t y) {
+		rawMouseDeltaCache.x += x;
+		rawMouseDeltaCache.y += y;
+	}
+
 	void PixelGameEngine::olc_UpdateMouseState(int32_t button, bool state)
 	{ pMouseNewState[button] = state; }
 
@@ -2198,6 +2216,8 @@ namespace olc
 
 		// Cache mouse coordinates so they remain consistent during frame
 		vMousePos = vMousePosCache;
+		rawMouseDelta = rawMouseDeltaCache;
+		rawMouseDeltaCache = { 0, 0 };
 		nMouseWheelDelta = nMouseWheelDeltaCache;
 		nMouseWheelDeltaCache = 0;
 
@@ -2553,6 +2573,8 @@ namespace olc
 #include <windows.h>
 #include <gdiplus.h>
 #include <Shlwapi.h>
+#include <winuser.h>
+#include <hidusage.h>
 
 namespace olc
 {
@@ -2661,6 +2683,15 @@ namespace olc
 			olc_hWnd = CreateWindowEx(dwExStyle, olcT("OLC_PIXEL_GAME_ENGINE"), olcT(""), dwStyle,
 				vTopLeft.x, vTopLeft.y, width, height, NULL, NULL, GetModuleHandle(nullptr), this);
 
+			//messings around by adding raw mouse input
+			//register mouse device
+			RAWINPUTDEVICE Rid[1];
+			Rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
+			Rid[0].usUsage = HID_USAGE_GENERIC_MOUSE;
+			Rid[0].dwFlags = 0x0;
+			Rid[0].hwndTarget = NULL;
+			printf("%d\n", RegisterRawInputDevices(Rid, 1, sizeof(Rid[0])));
+
 			// Create Keyboard Mapping
 			mapKeys[0x00] = Key::NONE;
 			mapKeys[0x41] = Key::A; mapKeys[0x42] = Key::B; mapKeys[0x43] = Key::C; mapKeys[0x44] = Key::D; mapKeys[0x45] = Key::E;
@@ -2718,8 +2749,28 @@ namespace olc
 		// Windows Event Handler - this is statically connected to the windows event system
 		static LRESULT CALLBACK olc_WindowEvent(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		{
+			//printf("%X\n", uMsg);
 			switch (uMsg)
 			{
+			case WM_INPUT: //from windoc
+			{
+				//printf("actually reading input\n");
+				UINT dwSize = sizeof(RAWINPUT);
+				static BYTE lpb[sizeof(RAWINPUT)];
+
+				GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER));
+
+				RAWINPUT* raw = (RAWINPUT*)lpb;
+
+				if (raw->header.dwType == RIM_TYPEMOUSE)
+				{
+					int xPosRelative = raw->data.mouse.lLastX;
+					int yPosRelative = raw->data.mouse.lLastY;
+					//printf("xPosRelative: %d, yPosRelative: %d\n", xPosRelative, yPosRelative);
+					ptrPGE->olc_UpdateRawMouse(xPosRelative, yPosRelative);
+				}
+				return 0;
+			}
 			case WM_MOUSEMOVE:
 			{
 				// Thanks @ForAbby (Discord)
@@ -2728,6 +2779,7 @@ namespace olc
 				ptrPGE->olc_UpdateMouse(ix, iy);
 				return 0;
 			}
+			
 			case WM_SIZE:       ptrPGE->olc_UpdateWindowSize(lParam & 0xFFFF, (lParam >> 16) & 0xFFFF);	return 0;
 			case WM_MOUSEWHEEL:	ptrPGE->olc_UpdateMouseWheel(GET_WHEEL_DELTA_WPARAM(wParam));           return 0;			
 			case WM_MOUSELEAVE: ptrPGE->olc_UpdateMouseFocus(false);                                    return 0;

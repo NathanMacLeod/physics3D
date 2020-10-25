@@ -2,7 +2,7 @@
 #include "../Math/transformation3D.h"
 #include <stdio.h>
 
-RigidBody::RigidBody(const std::vector<ConvexHull*>& hulls, double density, double friction, double restitution, bool fixed) {
+RigidBody::RigidBody(const std::vector<ConvexHull*>& hulls, double density, double friction, double restitution, bool fixed, bool custumCOM, Vector3D com) {
 	this->fixed = fixed;
 	this->friction = friction;
 	this->restitution = restitution;
@@ -10,15 +10,55 @@ RigidBody::RigidBody(const std::vector<ConvexHull*>& hulls, double density, doub
 	ID = -1; //unitialized
 	trackHistory = false;
 
-	findBodyMassAndInertia(density);
+	findBodyMassAndInertia(density, custumCOM, com);
 
 	for (ConvexHull* hull : hulls) {
-		for (Vector3D* p : *hull->getColPoints()) {
-			pointsToTransform.push_back(p);
+		for (RigidSurface* s : *hull->getSurfaces()) {
+			for (Vector3D* p : *s->getPoints()) {
+				pointsToTransform.push_back(p);
+			}
 		}
 		pointsToTransform.push_back(hull->getCOMPointer());
 	}
 	
+	if (fixed) {
+		findDimensions();
+	}
+
+	findCollisionRadius();
+
+	copyPoints();
+}
+
+RigidBody::RigidBody(const RigidBody& body) {
+	this->fixed = body.fixed;
+	this->friction = body.friction;
+	this->restitution = body.restitution;
+
+	ID = -1; //unitialized
+	trackHistory = false;
+
+	centerOfMass = body.centerOfMass;
+	mass = body.mass;
+	inverseMass = body.inverseMass;
+	inertiaTensor = body.inertiaTensor;
+
+	for (ConvexHull* h : body.hulls) {
+		hulls.push_back(new ConvexHull(*h));
+	}
+
+	for (ConvexHull* hull : hulls) {
+		for (RigidSurface* s : *hull->getSurfaces()) {
+			for (Vector3D* p : *s->getPoints()) {
+				pointsToTransform.push_back(p);
+			}
+		}
+		pointsToTransform.push_back(hull->getCOMPointer());
+	}
+
+	if (fixed) {
+		findDimensions();
+	}
 
 	findCollisionRadius();
 
@@ -33,6 +73,45 @@ RigidBody::~RigidBody() {
 	for (ConvexHull* h : hulls) {
 		delete h;
 	}
+}
+
+void RigidBody::addNoCol(uint16_t ID) {
+	noColList.push_back(ID);
+}
+
+bool RigidBody::onNoColList(uint16_t ID) {
+	for (int i : noColList) {
+		if (i == ID) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void RigidBody::findDimensions() {
+	double maxX = -INFINITY;
+	double minX = INFINITY;
+	double maxY = -INFINITY;
+	double minY = INFINITY;
+	double maxZ = -INFINITY;
+	double minZ = INFINITY;
+
+	for (Vector3D* p : pointsToTransform) {
+		maxX = std::fmax(p->x, maxX);
+		minX = std::fmin(p->x, minX);
+		maxY = std::fmax(p->y, maxY);
+		minY = std::fmin(p->y, minY);
+		maxZ = std::fmax(p->z, maxZ);
+		minZ = std::fmin(p->z, minZ);
+	}
+
+	
+	fixedDimensions = Vector3D(maxX - minX, maxY - minY, maxZ - minZ);
+	dimCenter = Vector3D(maxX + minX, maxY + minY, maxZ + minZ).multiply(0.5);
+}
+
+Vector3D RigidBody::getDimCenter() {
+	return dimCenter;
 }
 
 Rotor RigidBody::getOrientation() {
@@ -94,10 +173,9 @@ std::vector<ConvexHull*>* RigidBody::getHulls() {
 	return &hulls;
 }
 
-void RigidBody::findBodyMassAndInertia(double density) {
+void RigidBody::findBodyMassAndInertia(double density, bool useCustumCOM, Vector3D custumCOM) {
 
 	mass = 0;
-	inertiaTensor = new double[9]{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 	for (ConvexHull* hull : hulls) {
 		mass += hull->getMass();
@@ -112,25 +190,41 @@ void RigidBody::findBodyMassAndInertia(double density) {
 	centerOfMass.y /= mass;
 	centerOfMass.z /= mass;
 
+	if (useCustumCOM) {
+		centerOfMass = custumCOM;
+	}
+
 	for (ConvexHull* hull : hulls) {
 		Vector3D hullCOM = hull->getCenterOfMass();
 		Vector3D hullRel;
 		hullRel.x = hullCOM.x - centerOfMass.x;
 		hullRel.y = hullCOM.y - centerOfMass.y;
 		hullRel.z = hullCOM.z - centerOfMass.z;
-		double* hTens = hull->getInertia();
+		Matrix33* hTens = hull->getInertia();
 
-		inertiaTensor[0] += hTens[0] + hull->getMass() * (hullRel.y * hullRel.y + hullRel.z * hullRel.z);
-		inertiaTensor[1] += hTens[1] - hull->getMass() * (hullRel.x * hullRel.y);
-		inertiaTensor[2] += hTens[2] - hull->getMass() * (hullRel.x * hullRel.z);
-		inertiaTensor[3] += hTens[3] - hull->getMass() * (hullRel.x * hullRel.y);
-		inertiaTensor[4] += hTens[4] + hull->getMass() * (hullRel.x * hullRel.x + hullRel.z * hullRel.z);
-		inertiaTensor[5] += hTens[5] - hull->getMass() * (hullRel.z * hullRel.y);
-		inertiaTensor[6] += hTens[6] - hull->getMass() * (hullRel.x * hullRel.z);
-		inertiaTensor[7] += hTens[7] - hull->getMass() * (hullRel.z * hullRel.y);
-		inertiaTensor[8] += hTens[8] + hull->getMass() * (hullRel.x * hullRel.x + hullRel.y * hullRel.y);
-
+		inertiaTensor.elements[0][0] += hTens->elements[0][0] + hull->getMass() * (hullRel.y * hullRel.y + hullRel.z * hullRel.z);
+		inertiaTensor.elements[0][1] += hTens->elements[0][1] - hull->getMass() * (hullRel.x * hullRel.y);
+		inertiaTensor.elements[0][2] += hTens->elements[0][2] - hull->getMass() * (hullRel.x * hullRel.z);
+		inertiaTensor.elements[1][0] += hTens->elements[1][0] - hull->getMass() * (hullRel.x * hullRel.y);
+		inertiaTensor.elements[1][1] += hTens->elements[1][1] + hull->getMass() * (hullRel.x * hullRel.x + hullRel.z * hullRel.z);
+		inertiaTensor.elements[1][2] += hTens->elements[1][2] - hull->getMass() * (hullRel.z * hullRel.y);
+		inertiaTensor.elements[2][0] += hTens->elements[2][0] - hull->getMass() * (hullRel.x * hullRel.z);
+		inertiaTensor.elements[2][1] += hTens->elements[2][1] - hull->getMass() * (hullRel.z * hullRel.y);
+		inertiaTensor.elements[2][2] += hTens->elements[2][2] + hull->getMass() * (hullRel.x * hullRel.x + hullRel.y * hullRel.y);
 	}
+
+	tensorInverse = inertiaTensor.invert();
+
+	/*for (int i = 0; i < 9; i++) {
+		printf("%f, ", inertiaTensor[i]);
+		if ((i + 1) % 3 == 0)
+			printf("\n");
+	}
+
+	printf("%f, %f, %f\n", centerOfMass.x, centerOfMass.y, centerOfMass.z);
+
+	printf("%f\n", mass);
+	printf("____________________________________\n");*/
 }
 
 void RigidBody::setVelocity(Vector3D vel) {
@@ -152,18 +246,56 @@ void RigidBody::translate(const Vector3D translation) {
 	transformation3D::translatePoints(&pointsToTransform, translation);
 }
 
+Vector3D RigidBody::getDimensions() {
+	return fixedDimensions;
+}
+
+void RigidBody::setToOrientation(Rotor rotor) {
+	orientation = rotor;
+	for (int i = 0; i < pointsOG.size(); i++) {
+		*pointsToTransform.at(i) = centerOfMass.add(orientation.rotate(pointsOG.at(i)));
+	}
+	if (fixed) {
+		findDimensions();
+	}
+}
+
+//Method from talk by Erin Catto, "Physics for Game Programmers: Numberical Methods"
+//can view here: https://www.gdcvault.com/play/1022196/Physics-for-Game-Programmers-Numerical
+//
+Vector3D RigidBody::gyroAccel(double time) {
+	Vector3D wB = orientation.getInverse().rotate(angularVelocity);
+	Vector3D w2B = wB;
+
+	Vector3D wAccel = tensorInverse * ((inertiaTensor * wB).crossProduct(wB));
+	return orientation.rotate(wAccel.multiply(time).add(wB));
+
+	int nItr = 1;
+	for (int i = 0; i < nItr; i++) {
+		Vector3D funcW = (inertiaTensor * w2B.sub(wB)).add(w2B.crossProduct(inertiaTensor * w2B).multiply(time));
+		Matrix33 jacobian = inertiaTensor + (((Matrix33::skew(w2B) * inertiaTensor) + (Matrix33::skew(inertiaTensor * w2B) * -1)) * time);
+		w2B = Matrix33::newtonSolve(w2B, funcW, jacobian);
+	}
+
+	return orientation.rotate(w2B);
+}
+
+std::vector<Vector3D>* RigidBody::getAllPoints() {
+	return &pointsOG;
+}
+
 void RigidBody::moveInTime(double time) {
-	if (fixed && false)
-		return;
-	double rotationMagnitude = angularVelocity.getMagnitude() * time;
 	Vector3D linMove = velocity.multiply(time);
 	centerOfMass = centerOfMass.add(linMove);
-	Vector3D rotationAxis = angularVelocity.getUnitVector();
-	if (rotationMagnitude != 0) {
-		orientation = orientation.applyRotor(Rotor(rotationAxis, rotationMagnitude));
-		for (int i = 0; i < pointsOG.size(); i++) {
-			*pointsToTransform.at(i) = centerOfMass.add(orientation.rotate(pointsOG.at(i)));
-		}
+
+	if (angularVelocity.notZero()) {
+
+		angularVelocity = gyroAccel(time);
+
+		double rotationMagnitude = angularVelocity.getMagnitude() * time;
+		Vector3D rotationAxis = angularVelocity.getUnitVector();
+	
+		setToOrientation(orientation.applyRotor(Rotor(rotationAxis, rotationMagnitude)));
 	}
 	else {
 		transformation3D::translatePoints(&pointsToTransform, linMove);
@@ -187,15 +319,17 @@ Vector3D RigidBody::findVectorRelativeToBodyFrame(const Vector3D vector) {
 	return orientation.getInverse().rotate(vector);
 }
 
+double RigidBody::getInertiaOfAxis(const Vector3D axisIn) {
+	Vector3D axis = findVectorRelativeToBodyFrame(axisIn).getUnitVector();
+	Vector3D iAxis = inertiaTensor * axis;
+	return axis.dotProduct(iAxis);
+}
+
 double RigidBody::findInverseInertiaOfAxis(const Vector3D inputAxis) {	
 	if (fixed || !inputAxis.notZero())
 		return 0;
-	Vector3D axis = findVectorRelativeToBodyFrame(inputAxis).getUnitVector();
-	double vec1 = inertiaTensor[0] * axis.x + inertiaTensor[1] * axis.y + inertiaTensor[2] * axis.z;
-	double vec2 = inertiaTensor[3] * axis.x + inertiaTensor[4] * axis.y + inertiaTensor[5] * axis.z;
-	double vec3 = inertiaTensor[6] * axis.x + inertiaTensor[7] * axis.y + inertiaTensor[8] * axis.z;
-	double inertia = axis.x * vec1 + axis.y * vec2 + axis.z * vec3;
-	return 1.0 / inertia;
+	
+	return 1.0 / getInertiaOfAxis(inputAxis);
 }
 
 void RigidBody::applyImpulseAtPosition(const Vector3D impulse, const Vector3D position) {
@@ -255,7 +389,7 @@ double RigidBody::getCollisionRadiusSquared() const {
 }
 
 Vector3D RigidBody::getCenterOfMass() {
-	return centerOfMass;
+ 	return centerOfMass;
 }
 
 bool RigidBody::bodiesInCollisionRange(RigidBody* body) {

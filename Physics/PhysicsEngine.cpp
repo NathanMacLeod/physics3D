@@ -129,7 +129,15 @@ void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body
 	static double narrowTests = 0;
 	static double satTests = 0;
 	static double collApply = 0;
-	//check if bodies already tested against each other in this physics tick
+
+	//checks to avoid unnecessary/unwanted physics
+	if (body1->getFixed() && body2->getFixed()) {
+		return;
+	}
+	if (body1->onNoColList(body2->getID()) || body2->onNoColList(body1->getID())) {
+		return;
+	}
+	
 	if (body1->alreadyTestedAgainst(body2->getID())) {
 		return;
 	}
@@ -284,7 +292,7 @@ void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body
 			resolveImpulses(collider, collidee, norm, colPoint, supPoints, (collidee->getRestitution() + collider->getRestitution()) / 2.0);
 		}
 
-		pushBodiesApart(collider, collidee, norm, (contactColl) ? 0.15 * colDepth : colDepth);
+		pushBodiesApart(collider, collidee, norm, (contactColl) ? 1/*0.15*/ * colDepth : colDepth);
 		auto t4 = std::chrono::system_clock::now();
 
 		std::chrono::duration<float> narrow = t2 - t1;
@@ -297,6 +305,15 @@ void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body
 
 		//printf("narrowTest: %f, satTest: %f, collApply: %f\n", narrowTests, satTests, collApply);
 	}
+}
+
+bool PhysicsEngine::bodyInUse(uint16_t bodyID) {
+	for (RigidBody* b : rigidBodies) {
+		if (b->getID() == bodyID) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void PhysicsEngine::iterateEngine(double secondsPassed) {
@@ -313,6 +330,7 @@ void PhysicsEngine::iterateEngine(double secondsPassed) {
 void PhysicsEngine::iterateEngineTimestep() {
 	auto t1 = std::chrono::system_clock::now();
 	Vector3D gravityAcceleration(gravity.x * timestep, gravity.y * timestep, gravity.z * timestep);
+
 	for (RigidBody* body : rigidBodies) {
 		body->acclerateLineraly(gravityAcceleration);
 		body->moveInTime(timestep);

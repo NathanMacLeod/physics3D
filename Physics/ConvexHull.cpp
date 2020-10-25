@@ -1,5 +1,18 @@
 #include "ConvexHull.h"
 
+ConvexHull::ConvexHull(const ConvexHull& hull) {
+	this->centerOfMass = hull.centerOfMass;
+	this->collisionRadius = hull.collisionRadius;
+	this->collisionRadiusSquared = hull.collisionRadiusSquared;
+	this->mass = hull.mass;
+
+	this->inertiaTensor = hull.inertiaTensor;
+	for (RigidSurface* r : hull.surfaces) {
+		surfaces.push_back(new RigidSurface(*r));
+	}
+	findColPointsEdges();
+}
+
 ConvexHull::ConvexHull(const std::vector<RigidSurface*>* surfaces, double density) {
 	this->surfaces = *surfaces;	
 
@@ -28,18 +41,31 @@ ConvexHull::Edge::Edge(Vector3D* p1, Vector3D* p2, bool interiorEdge) {
 	this->interiorEdge = interiorEdge;
 }
 
+std::vector<RigidSurface*>* ConvexHull::getSurfaces() {
+	return &surfaces;
+}
+
 Vector3D* ConvexHull::getCOMPointer() {
 	return &centerOfMass;
 }
 
+bool ConvexHull::Edge::operator==(const Edge& e) {;
+	return (*e.p1 == *p1 && *e.p2 == *p2) || (*e.p2 == *p1 && *e.p1 == *p2);
+}
+
 void ConvexHull::findColPointsEdges() {
 	for (RigidSurface* s : surfaces) {
+
+		Vector3D* prevPoint = nullptr;
+		Vector3D* p0 = nullptr;
+
 		for (int i = 0; i < s->getPoints()->size(); i++) {
 			Vector3D* p = s->getPoints()->at(i);
 			bool pAlreadyAdded = false;
 			for (Vector3D* cp : colPoints) {
-				if (cp == p) {
+				if (*cp == *p) {
 					pAlreadyAdded = true;
+					p = cp;
 					break;
 				}
 			}
@@ -47,16 +73,42 @@ void ConvexHull::findColPointsEdges() {
 				colPoints.push_back(p);
 			}
 
-			Vector3D* p2 = (i + 1 == s->getPoints()->size()) ? s->getPoints()->at(0) : s->getPoints()->at(i + 1);
-			bool edgeAlreadyAdded = false;
-			for (Edge* edge : colEdges) {
-				if ((edge->p1 == p && edge->p2 == p2) || (edge->p2 == p && edge->p1 == p2)) {
-					edgeAlreadyAdded = true;
-					break;
+			if (prevPoint != nullptr) {
+				bool edgeAlreadyAdded = false;
+				Edge edge = Edge(p, prevPoint, s->isInteriorSurface());
+				for (Edge* existingEdge : colEdges) {
+					if (*existingEdge == edge) {
+						if (!s->isInteriorSurface() && existingEdge->interiorEdge) {
+							existingEdge->interiorEdge = false;
+						}
+						edgeAlreadyAdded = true;
+						break;
+					}
+				}
+				if (!edgeAlreadyAdded) {
+					colEdges.push_back(new Edge(edge));
 				}
 			}
-			if (!edgeAlreadyAdded) {
-				colEdges.push_back(new Edge(p, p2, s->isInteriorSurface()));
+			prevPoint = p;
+			if (i == 0) { 
+				p0 = p; 
+			}
+
+			if (i == s->getPoints()->size() - 1) {
+				bool edgeAlreadyAdded = false;
+				Edge edge = Edge(p, p0, s->isInteriorSurface());
+				for (Edge* existingEdge : colEdges) {
+					if (*existingEdge == edge) {
+						if (!s->isInteriorSurface() && existingEdge->interiorEdge) {
+							existingEdge->interiorEdge = false;
+						}
+						edgeAlreadyAdded = true;
+						break;
+					}
+				}
+				if (!edgeAlreadyAdded) {
+					colEdges.push_back(new Edge(edge));
+				}
 			}
 		}
 	}
@@ -253,17 +305,15 @@ void ConvexHull::findBodyMassAndInertia(double density) {
 	centerOfMass.y = vY / v;
 	centerOfMass.z = vZ / v;
 
-	inertiaTensor = new double[9]{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-	inertiaTensor[0] = density * (vYSqrd + vZSqrd - v * (centerOfMass.y * centerOfMass.y + centerOfMass.z * centerOfMass.z));
-	inertiaTensor[1] = -density * (vXY - v * centerOfMass.x * centerOfMass.y);
-	inertiaTensor[2] = -density * (vXZ - v * centerOfMass.x * centerOfMass.z);
-	inertiaTensor[4] = density * (vXSqrd + vZSqrd - v * (centerOfMass.x * centerOfMass.x + centerOfMass.z * centerOfMass.z));
-	inertiaTensor[5] = -density * (vYZ - v * centerOfMass.y * centerOfMass.z);
-	inertiaTensor[8] = density * (vXSqrd + vYSqrd - v * (centerOfMass.x * centerOfMass.x + centerOfMass.y * centerOfMass.y));
-	inertiaTensor[3] = inertiaTensor[1];
-	inertiaTensor[6] = inertiaTensor[2];
-	inertiaTensor[7] = inertiaTensor[5];
+	inertiaTensor.elements[0][0] = density * (vYSqrd + vZSqrd - v * (centerOfMass.y * centerOfMass.y + centerOfMass.z * centerOfMass.z));
+	inertiaTensor.elements[0][1] = -density * (vXY - v * centerOfMass.x * centerOfMass.y);
+	inertiaTensor.elements[0][2] = -density * (vXZ - v * centerOfMass.x * centerOfMass.z);
+	inertiaTensor.elements[1][1] = density * (vXSqrd + vZSqrd - v * (centerOfMass.x * centerOfMass.x + centerOfMass.z * centerOfMass.z));
+	inertiaTensor.elements[1][2] = -density * (vYZ - v * centerOfMass.y * centerOfMass.z);
+	inertiaTensor.elements[2][2] = density * (vXSqrd + vYSqrd - v * (centerOfMass.x * centerOfMass.x + centerOfMass.y * centerOfMass.y));
+	inertiaTensor.elements[1][0] = inertiaTensor.elements[0][1];
+	inertiaTensor.elements[1][2] = inertiaTensor.elements[0][2];
+	inertiaTensor.elements[2][1] = inertiaTensor.elements[1][2];
 
 
 	/*for (int i = 0; i < 9; i++) {
@@ -297,8 +347,8 @@ Vector3D ConvexHull::getCenterOfMass() {
 	return centerOfMass;
 }
 
-double* ConvexHull::getInertia() {
-	return inertiaTensor;
+Matrix33* ConvexHull::getInertia() {
+	return &inertiaTensor;
 }
 
 double ConvexHull::getMass() {
@@ -395,7 +445,7 @@ bool ConvexHull::SATColliderDetect(ConvexHull* potCollider, std::vector<ColPoint
 		}
 		//interior surface only is checked for a separating axis,
 		//if a non interior surface with same norm exists 
-		if (alreadyTested && !s->isInteriorSurface()) {
+		if (alreadyTested) {
 			continue;
 		}
 		testedDirs.push_back(n);
@@ -410,23 +460,21 @@ bool ConvexHull::SATColliderDetect(ConvexHull* potCollider, std::vector<ColPoint
 		potCollider->findMaxMin(n, &colliderMax, &colliderMin, &maxPoint, &minPoint);
 
 		if (!(colliderMin > collideeMax || colliderMax < collideeMin)) { //check for intersection
-			if (!s->isInteriorSurface()) { //interior surface cannot be a collision norm
-				double colDepth = collideeMax - colliderMin;
-				Vector3D potColPoint = minPoint;
-				bool flipped = false;
-				if (colliderMax - collideeMin < colDepth) {
-					flipped = true;
-					colDepth = colliderMax - collideeMin;
-					n = n.getInverse();
-					potColPoint = maxPoint;
-				}
+			double colDepth = collideeMax - colliderMin;
+			Vector3D potColPoint = minPoint;
+			bool flipped = false;
+			if (colliderMax - collideeMin < colDepth) {
+				flipped = true;
+				colDepth = colliderMax - collideeMin;
+				n = n.getInverse();
+				potColPoint = maxPoint;
+			}
 
-				if (getPointInsideBody(potColPoint) && (colDepth < lowestColDepth || lowestColDepth == -1)) {
-					lowestColDepth = colDepth;
-					colPoint = potColPoint;
-					colVector = n;
-					winningCollideeMax = (flipped) ? -collideeMin : collideeMax;
-				}
+			if (getPointInsideBody(potColPoint) && (colDepth < lowestColDepth || lowestColDepth == -1)) {
+				lowestColDepth = colDepth;
+				colPoint = potColPoint;
+				colVector = n;
+				winningCollideeMax = (flipped) ? -collideeMin : collideeMax;
 			}
 		}
 		else {
@@ -480,39 +528,41 @@ bool ConvexHull::SATEdgeCol(ConvexHull* potCollider, Vector3D* collisionPoint, V
 			potCollider->findMaxMin(n, &colliderMax, &colliderMin, nullptr, nullptr);
 
 			if (!(colliderMin > collideeMax || colliderMax < collideeMin)) { //check for intersection
-				double colDepth = collideeMax - colliderMin;
-				if (colliderMax - collideeMin < colDepth) {
-					colDepth = colliderMax - collideeMin;
-					n = n.getInverse();
-				}
-
-				if (colDepth < lowestColDepth || lowestColDepth == -1) {
-					Vector3D e1Axis = Vector3D(*edge1->p1, *edge1->p2).multiply(edge1->inverseMagnitude);
-					Vector3D e1Norm = e1Axis.crossProduct(n);
-
-					Vector3D e2p1Rel = Vector3D(*edge1->p1, *edge2->p1);
-					Vector3D e2p2Rel = Vector3D(*edge1->p1, *edge2->p2);
-
-					double p1e1Val = e2p1Rel.dotProduct(e1Axis);
-					double p2e1Val = e2p2Rel.dotProduct(e1Axis);
-					double p1NormVal = e2p1Rel.dotProduct(e1Norm);
-					double p2NormVal = e2p2Rel.dotProduct(e1Norm);
-
-					if (p2NormVal - p1NormVal == 0) {
-						continue; //edges are parralel, collision can't occur
+				if (!edge1->interiorEdge && !edge2->interiorEdge) {
+					double colDepth = collideeMax - colliderMin;
+					if (colliderMax - collideeMin < colDepth) {
+						colDepth = colliderMax - collideeMin;
+						n = n.getInverse();
 					}
 
-					double p1ToP2e1Slope = (p2e1Val - p1e1Val) / (p2NormVal - p1NormVal);
-					double intersectE1AxisVal = p1e1Val + p1ToP2e1Slope * (-p1NormVal);
-					if (intersectE1AxisVal < 0 || intersectE1AxisVal >(1.0 / edge1->inverseMagnitude)) {
-						continue; //edges are offset and couldnt collide
-					}
+					if (colDepth < lowestColDepth || lowestColDepth == -1) {
+						Vector3D e1Axis = Vector3D(*edge1->p1, *edge1->p2).multiply(edge1->inverseMagnitude);
+						Vector3D e1Norm = e1Axis.crossProduct(n);
 
-					Vector3D* p1 = edge1->p1;
-					Vector3D e1ToColP = e1Axis.multiply(intersectE1AxisVal);
-					colPoint = Vector3D(p1->x + e1ToColP.x, p1->y + e1ToColP.y, p1->z + e1ToColP.z);
-					colVector = n;
-					lowestColDepth = colDepth;
+						Vector3D e2p1Rel = Vector3D(*edge1->p1, *edge2->p1);
+						Vector3D e2p2Rel = Vector3D(*edge1->p1, *edge2->p2);
+
+						double p1e1Val = e2p1Rel.dotProduct(e1Axis);
+						double p2e1Val = e2p2Rel.dotProduct(e1Axis);
+						double p1NormVal = e2p1Rel.dotProduct(e1Norm);
+						double p2NormVal = e2p2Rel.dotProduct(e1Norm);
+
+						if (p2NormVal - p1NormVal == 0) {
+							continue; //edges are parralel, collision can't occur
+						}
+
+						double p1ToP2e1Slope = (p2e1Val - p1e1Val) / (p2NormVal - p1NormVal);
+						double intersectE1AxisVal = p1e1Val + p1ToP2e1Slope * (-p1NormVal);
+						if (intersectE1AxisVal < 0 || intersectE1AxisVal >(1.0 / edge1->inverseMagnitude)) {
+							continue; //edges are offset and couldnt collide
+						}
+
+						Vector3D* p1 = edge1->p1;
+						Vector3D e1ToColP = e1Axis.multiply(intersectE1AxisVal);
+						colPoint = Vector3D(p1->x + e1ToColP.x, p1->y + e1ToColP.y, p1->z + e1ToColP.z);
+						colVector = n;
+						lowestColDepth = colDepth;
+					}
 				}
 			}
 			else {

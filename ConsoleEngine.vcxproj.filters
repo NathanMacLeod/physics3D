@@ -22,20 +22,23 @@
     <ClCompile Include="Math\Vector3D.cpp">
       <Filter>Math</Filter>
     </ClCompile>
-    <ClCompile Include="OLCEngine\olcExampleProgram.cpp">
-      <Filter>OLCEngine</Filter>
-    </ClCompile>
     <ClCompile Include="OLCEngine\Polygon3D.cpp">
       <Filter>OLCEngine</Filter>
     </ClCompile>
     <ClCompile Include="Math\Rotor.cpp">
       <Filter>Math</Filter>
     </ClCompile>
-    <ClCompile Include="OLCEngine\PhysicsObject.cpp">
-      <Filter>OLCEngine</Filter>
+    <ClCompile Include="Math\Matrix33.cpp">
+      <Filter>Math</Filter>
     </ClCompile>
-    <ClCompile Include="OLCEngine\PolyModel.cpp">
-      <Filter>OLCEngine</Filter>
+    <ClCompile Include="Game\PhysicsObject.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\PolyModel.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Game\SpaceMinerGame.cpp">
+      <Filter>Game</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -72,14 +75,23 @@
     <ClInclude Include="Math\Rotor.h">
       <Filter>Math</Filter>
     </ClInclude>
-    <ClInclude Include="OLCEngine\PhysicsObject.h">
-      <Filter>OLCEngine</Filter>
-    </ClInclude>
-    <ClInclude Include="OLCEngine\PolyModel.h">
-      <Filter>OLCEngine</Filter>
-    </ClInclude>
     <ClInclude Include="OLCEngine\PixelEngine3D.h">
       <Filter>OLCEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Matrix33.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\Drawable.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\PhysicsObject.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\PolyModel.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="Game\SpaceMinerGame.h">
+      <Filter>Game</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -91,6 +103,9 @@
     </Filter>
     <Filter Include="OLCEngine">
       <UniqueIdentifier>{2668af1e-2043-43ae-b3c8-df7bba139190}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Game">
+      <UniqueIdentifier>{abd3c790-6fbe-42d9-a0eb-cde803e5956e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

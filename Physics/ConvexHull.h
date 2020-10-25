@@ -1,6 +1,7 @@
 #pragma once
-#include <vector>;
-#include "../Math/Vector3D.h";
+#include <vector>
+#include "../Math/Vector3D.h"
+#include "../Math/Matrix33.h"
 #include "RigidSurface.h"
 
 class ConvexHull {
@@ -23,6 +24,7 @@ public:
 		bool interiorEdge;
 
 		Edge(Vector3D* p1, Vector3D* p2, bool interiorEdge);
+		bool operator==(const Edge& e);
 	};
 
 private:
@@ -33,7 +35,7 @@ private:
 	double collisionRadius;
 	double collisionRadiusSquared;
 	double mass;
-	double* inertiaTensor;
+	Matrix33 inertiaTensor;
 
 	void findBodyMassAndInertia(double density);
 	void findCollisionRadius();
@@ -41,13 +43,15 @@ private:
 	void findMaxMin(Vector3D n, double* max, double* min, Vector3D* maxP, Vector3D* minP);
 public:
 	ConvexHull(const std::vector<RigidSurface*>* surfaces, double density);
+	ConvexHull(const ConvexHull& hull);
 	~ConvexHull();
 
 	Vector3D getCenterOfMass();
 	Vector3D* getCOMPointer();
 	std::vector<Vector3D*>* getColPoints();
+	std::vector<RigidSurface*>* getSurfaces();
 	double getCollisionRadius();
-	double* getInertia();
+	Matrix33* getInertia();
 	double getMass();
 	bool hullsInCollisionRange(ConvexHull* hull);
 	bool SATColliderDetect(ConvexHull* potCollider, std::vector<ColPointInfo>* colSupPoints, Vector3D* colPoint, Vector3D* nVect, double* colDepth, bool* separatingAxis);

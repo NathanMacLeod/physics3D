@@ -1,5 +1,6 @@
 #pragma once
-#include "Polygon3D.h"
+#include "../OLCEngine/Polygon3D.h"
+#include "../OLCEngine/PixelEngine3D.h"
 #include "../Math/Rotor.h"
 #include "../Math/Vector3D.h"
 #include <vector>
@@ -13,6 +14,7 @@ private:
 	Rotor orientation;
 public:
 	PolyModel(std::vector<Polygon3D>* polygons, Vector3D center);
+	~PolyModel();
 	PolyModel();
 
 	void rotate(Rotor rotation);
@@ -22,6 +24,6 @@ public:
 	void setPosAndOrientation(Rotor orientation, Vector3D pos);
 	Vector3D getPos();
 	Rotor getOrientation();
-	std::vector<Polygon3D>* getPolygons();
 	bool outOfView(Vector3D cameraPos, Rotor cameraDir, double fov, int screenWidth, int screenHeight);
+	void draw(PixelEngine3D* g, Vector3D cameraPos, Rotor cameraDir, double FOV);
 };

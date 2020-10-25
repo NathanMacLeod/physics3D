@@ -123,12 +123,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Game\PhysicsObject.cpp" />
+    <ClCompile Include="Game\PolyModel.cpp" />
+    <ClCompile Include="Game\SpaceMinerGame.cpp" />
+    <ClCompile Include="Math\Matrix33.cpp" />
     <ClCompile Include="Math\Rotor.cpp" />
     <ClCompile Include="Math\Vector3D.cpp" />
-    <ClCompile Include="OLCEngine\olcExampleProgram.cpp" />
-    <ClCompile Include="OLCEngine\PhysicsObject.cpp" />
     <ClCompile Include="OLCEngine\Polygon3D.cpp" />
-    <ClCompile Include="OLCEngine\PolyModel.cpp" />
     <ClCompile Include="Physics\CollisionInfo.cpp" />
     <ClCompile Include="Physics\ConvexHull.cpp" />
     <ClCompile Include="Physics\OctreeNode.cpp" />
@@ -137,14 +138,17 @@
     <ClCompile Include="Physics\RigidSurface.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Game\Drawable.h" />
+    <ClInclude Include="Game\PhysicsObject.h" />
+    <ClInclude Include="Game\PolyModel.h" />
+    <ClInclude Include="Game\SpaceMinerGame.h" />
+    <ClInclude Include="Math\Matrix33.h" />
     <ClInclude Include="Math\Rotor.h" />
     <ClInclude Include="Math\transformation3D.h" />
     <ClInclude Include="Math\Vector3D.h" />
     <ClInclude Include="OLCEngine\PixelEngine3D.h" />
     <ClInclude Include="OLCEngine\olcPixelGameEngine.h" />
-    <ClInclude Include="OLCEngine\PhysicsObject.h" />
     <ClInclude Include="OLCEngine\Polygon3D.h" />
-    <ClInclude Include="OLCEngine\PolyModel.h" />
     <ClInclude Include="Physics\CollisionInfo.h" />
     <ClInclude Include="Physics\ConvexHull.h" />
     <ClInclude Include="Physics\OctreeNode.h" />

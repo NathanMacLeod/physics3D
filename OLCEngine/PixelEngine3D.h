@@ -8,9 +8,7 @@
 #include <chrono>
 #include "Polygon3D.h"
 #include "../Math/transformation3D.h"
-#include "../Physics/PhysicsEngine.h"
 #include "../Math/Rotor.h"
-#include "PhysicsObject.h";
 
 class PixelEngine3D : public olc::PixelGameEngine {
 
@@ -35,18 +33,10 @@ private:
 	}
 
 	void drawLine3D(double x1, double y1, double x2, double y2, double fov, Vector3D p1Pre, Vector3D p2Pre, olc::Pixel color) {
-		double weight = -0.5; //help draw lines over z buffer from the faces
+		double weight = -0.3; //help draw lines over z buffer from the faces
 
-		int changeX = x2 - x1;
-		int changeY = y2 - y1;
-
-		int absChangeX = abs(changeX);
-		int absChangeY = abs(changeY);
-
-		if (x1 >= 0 && x1 < ScreenWidth() && y1 >= 0 && y1 < ScreenHeight())
-			drawPixel3D(x1, y1, p1Pre.z + weight, color);
-		if (x2 >= 0 && x2 < ScreenWidth() && y2 >= 0 && y2 < ScreenHeight())
-			drawPixel3D(x2, y2, p2Pre.z + weight, color);
+		int absChangeX = abs(x2 - x1);
+		int absChangeY = abs(y2 - y1);
 
 		Vector3D l = p2Pre.sub(p1Pre);
 		Vector3D n;
@@ -58,16 +48,23 @@ private:
 		}
 		//Iterate along the longer dimension to avoid gaps in line
 		if (absChangeX > absChangeY) {
-			float m = (float)changeY / changeX;
-			for (int i = 0; i < absChangeX; i++) {
-				int dx = (changeX < 0) ? -i : i;
-				float dy = dx * m;
-				int x = x1 + dx;
-				int y = y1 + dy;
 
-				if (x >= 0 && x < ScreenWidth() && y >= 0 && y < ScreenHeight()) {
+			if (x2 < x1) {
+				double tempx = x1;
+				double tempy = y1;
+				x1 = x2;
+				y1 = y2;
+				x2 = tempx;
+				y2 = tempy;
+			}
 
-					double z;
+			float m = (float)((int)(y2 - y1)) / (int) (x2 - x1);
+			for (int x = std::max<int>(0, x1); x <= std::min<int>(ScreenWidth() - 1, x2); x++) {
+
+				int y = y1 + m * (x - x1);
+
+				if (y >= 0 && y < ScreenHeight()) {
+					double z = -1;
 					if (p1Pre.z == p2Pre.z) {
 						z = p1Pre.z;
 					}
@@ -91,15 +88,21 @@ private:
 			}
 		}
 		else {
-			float k = (float)changeX / changeY;
-			for (int i = 0; i < absChangeY; i++) {
-				int dy = (changeY < 0) ? -i : i;
-				float dx = dy * k;
-				int x = x1 + dx;
-				int y = y1 + dy;
 
-				if (x >= 0 && x < ScreenWidth() && y >= 0 && y < ScreenHeight()) {
+			if (y2 < y1) {
+				double tempx = x1;
+				double tempy = y1;
+				x1 = x2;
+				y1 = y2;
+				x2 = tempx;
+				y2 = tempy;
+			}
 
+			float k = (float)((int)(x2 - x1)) / (int)(y2 - y1);
+			for (int y = std::max<int>(0, y1); y <= std::min<int>(ScreenHeight() - 1, y2); y++) {
+				int x = x1 + k * (y - y1);
+
+				if (x >= 0 && x < ScreenWidth()) {
 					double z = -1;
 					if (p1Pre.z == p2Pre.z) {
 						z = p1Pre.z;
@@ -177,10 +180,8 @@ private:
 
 		if ((int)(upperPoint->y) != (int)(midPoint->y)) {
 
-			for (int i = (int)(upperPoint->y); i <= (int)(midPoint->y); i++) {
-				if (i < 0 || i >= ScreenHeight()) {
-					continue;
-				}
+			for (int i = std::max<int>(0, (int)(upperPoint->y)); i <= std::min<int>((int)(midPoint->y), ScreenHeight() - 1); i++) {
+
 				int leftBound = leftMostSlope * (i - upperPoint->y) + upperPoint->x;
 				int rightBound = rightMostSlope * (i - upperPoint->y) + upperPoint->x;
 
@@ -204,13 +205,14 @@ private:
 						double t = normalVector.dotProduct(p1Pre) / normalVector.dotProduct(v);
 						double z = v.z * t;
 
-						int col = 255 * z / 200;
-						if (col > 255) {
-							col = 255;
-						}
-						bool red = col < 0;
+						//int col = 255 * z / 200;
+						//if (col > 255) {
+						//	col = 255;
+						//}
+						//bool red = col < 0;
 
-						drawPixel3D(j, i, z, olc::Pixel(0, 0, col));
+						//drawPixel3D(j, i, z, olc::Pixel(0, 0, col));
+						drawPixel3D(j, i, z, color);
 					}
 					else {
 						Draw(j, i, color);
@@ -232,10 +234,7 @@ private:
 			rightMostSlope = temp;
 		}
 
-		for (int i = (int)lowerPoint->y; i > (int)(midPoint->y); i--) {
-			if (i < 0 || i >= ScreenHeight()) {
-				continue;
-			}
+		for (int i = std::min<int>(ScreenHeight() - 1, (int)lowerPoint->y); i > std::max<int>(0, (int)(midPoint->y)); i--) {
 
 			int leftBound = leftMostSlope * (i - lowerPoint->y) + lowerPoint->x;
 			int rightBound = rightMostSlope * (i - lowerPoint->y) + lowerPoint->x;
@@ -263,13 +262,14 @@ private:
 					double t = normalVector.dotProduct(p1Pre) / normalVector.dotProduct(v);
 					double z = v.z * t;
 
-					int col = 255 * z / 200;
-					if (col > 255) {
-						col = 255;
-					}
-					bool red = col < 0;
+					//int col = 255 * z / 200;
+					//if (col > 255) {
+					//	col = 255;
+					//}
+					//bool red = col < 0;
 
-					drawPixel3D(j, i, z, olc::Pixel(0, 0, col));
+					//drawPixel3D(j, i, z, olc::Pixel(0, 0, col));
+					drawPixel3D(j, i, z, color);
 				}
 				else {
 					Draw(j, i, color);
@@ -354,22 +354,18 @@ private:
 		}
 	}
 
-public:
-
-	PixelEngine3D() : PixelGameEngine() {
-		sAppName = "physicz";
-	}
-
-	~PixelEngine3D() {
-		delete zBuffer;
-	}
-
 	void drawPixel3D(int x, int y, double z, olc::Pixel color) {
 		int indx = getPixelIndex(x, y);
-		if (z <= 0 || (zBuffer[indx] > 0 && zBuffer[indx] <= z))
+		if (zBuffer[indx] > 0 && zBuffer[indx] <= z)
 			return;
 		zBuffer[indx] = z;
 		Draw(x, y, color);
+	}
+
+public:
+
+	~PixelEngine3D() {
+		delete zBuffer;
 	}
 
 	void drawPolygon(Polygon3D& polygon, Vector3D cameraPosition, Rotor cameraOrientation, float fov, bool drawLines) {
@@ -426,7 +422,7 @@ public:
 		}
 	}
 
-	void draw3DLine(Vector3D p1, Vector3D p2, const Vector3D cameraPosition, Rotor cameraOrientation, float fov) {
+	void draw3DLine(Vector3D p1, Vector3D p2, const Vector3D cameraPosition, Rotor cameraOrientation, float fov, olc::Pixel color) {
 
 		Vector3D cameraPositionToOrigin(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
 		Rotor rotate = cameraOrientation.getInverse();
@@ -457,17 +453,39 @@ public:
 		projectPoint(&maxZ, fov);
 		projectPoint(&minZ, fov);
 
-		drawLine3D(maxZ.x, maxZ.y, minZ.x, minZ.y, fov, maxZPre, minZPre, olc::GREEN);
+		drawLine3D(maxZ.x, maxZ.y, minZ.x, minZ.y, fov, maxZPre, minZPre, color);
 	}
 
-	void draw3DPoint(Vector3D p, const Vector3D cameraPosition, float orientationYAng, float orientationPitch, float fov) {
+	Vector3D getPixelCoord(Vector3D p, const Vector3D cameraPosition, Rotor cameraDir, float fov) {
 		Vector3D cameraPositionToOrigin(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
 
 		transformation3D::translatePoint(&p, cameraPositionToOrigin);
-		transformation3D::rotatePointAroundYParralelAxis(&p, -orientationYAng + 1.570795, 0, 0);
-		transformation3D::rotatePointAroundXParralelAxis(&p, -orientationPitch, 0, 0);
+
+		Rotor rotate = cameraDir.getInverse();
+		p = rotate.rotate(p);
+
 		projectPoint(&p, fov);
 
-		Draw((int)p.x, (int)p.y, olc::RED);
+		return Vector3D(p.x, p.y, 0);
+	}
+
+	void draw3DPoint(Vector3D p, const Vector3D cameraPosition, Rotor cameraDir, float fov, olc::Pixel color, bool skipZ=false) {
+		Vector3D cameraPositionToOrigin(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
+
+		transformation3D::translatePoint(&p, cameraPositionToOrigin);
+
+		Rotor rotate = cameraDir.getInverse();
+		p = rotate.rotate(p);
+
+		projectPoint(&p, fov);
+
+		int x = (int)p.x;
+		int y = (int)p.y;
+
+		if (p.z <= 0 || x < 0 || x >= ScreenWidth() || y < 0 || y >= ScreenHeight()) {
+			return;
+		}
+
+		drawPixel3D(x, y, skipZ? 0 : p.z, color);
 	}
 };

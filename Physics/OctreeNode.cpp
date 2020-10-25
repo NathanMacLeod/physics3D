@@ -85,26 +85,35 @@ void OctreeNode::expandNode() {
 	}
 
 	for (RigidBody* b : bodies) {
-		double r = b->getCollisionRadius();
 		Vector3D bPos = b->getCenterOfMass();
+		Vector3D dim;
+		if (b->getFixed()) {
+			bPos = b->getDimCenter();
+			dim = b->getDimensions().multiply(0.5);
+		}
+		else {
+			double r = b->getCollisionRadius();
+			dim = Vector3D(r, r, r);
+		}
+		
 
 		//lack of else statements intentional,
 		//as bodies can be in multiple nodes at once
 		//e.g. sitting on edge
 
 		//posX
-		if (bPos.x + r > pos.x + size / 2.0) {
+		if (bPos.x + dim.x > pos.x + size / 2.0) {
 			//posZ
-			if (bPos.z + r > pos.z + size / 2.0) {
+			if (bPos.z + dim.z > pos.z + size / 2.0) {
 				//posY
-				if (bPos.y + r > pos.y + size / 2.0) {
+				if (bPos.y + dim.y > pos.y + size / 2.0) {
 					if (children[0] == nullptr) {
 						children[0] = new OctreeNode(pos.add(Vector3D(size / 2.0, size / 2.0, size / 2.0)), size / 2.0, minSize);
 					}
 					children[0]->addBody(b);
 				}
 				//negY
-				if (bPos.y - r < pos.y + size / 2.0) {
+				if (bPos.y - dim.y < pos.y + size / 2.0) {
 					if (children[1] == nullptr) {
 						children[1] = new OctreeNode(pos.add(Vector3D(size / 2.0, 0, size/2.0)), size / 2.0, minSize);
 					}
@@ -112,16 +121,16 @@ void OctreeNode::expandNode() {
 				}
 			}
 			//negZ
-			if (bPos.z - r < pos.z + size / 2.0) {
+			if (bPos.z - dim.z < pos.z + size / 2.0) {
 				//posY
-				if (bPos.y + r > pos.y + size / 2.0) {
+				if (bPos.y + dim.y > pos.y + size / 2.0) {
 					if (children[2] == nullptr) {
 						children[2] = new OctreeNode(pos.add(Vector3D(size / 2.0, size/2.0, 0)), size / 2.0, minSize);
 					}
 					children[2]->addBody(b);
 				}
 				//negY
-				if (bPos.y - r < pos.y + size / 2.0) {
+				if (bPos.y - dim.y < pos.y + size / 2.0) {
 					if (children[3] == nullptr) {
 						children[3] = new OctreeNode(pos.add(Vector3D(size / 2.0, 0, 0)), size / 2.0, minSize);
 					}
@@ -130,18 +139,18 @@ void OctreeNode::expandNode() {
 			}
 		}
 		//negX
-		if (bPos.x - r < pos.x + size / 2.0) {
+		if (bPos.x - dim.x < pos.x + size / 2.0) {
 			//posZ
-			if (bPos.z + r > pos.z + size / 2.0) {
+			if (bPos.z + dim.z > pos.z + size / 2.0) {
 				//posY
-				if (bPos.y + r > pos.y + size / 2.0) {
+				if (bPos.y + dim.y > pos.y + size / 2.0) {
 					if (children[4] == nullptr) {
 						children[4] = new OctreeNode(pos.add(Vector3D(0, size / 2.0, size / 2.0)), size / 2.0, minSize);
 					}
 					children[4]->addBody(b);
 				}
 				//negY
-				if (bPos.y - r < pos.y + size / 2.0) {
+				if (bPos.y - dim.y < pos.y + size / 2.0) {
 					if (children[5] == nullptr) {
 						children[5] = new OctreeNode(pos.add(Vector3D(0, 0, size/2.0)), size / 2.0, minSize);
 					}
@@ -149,16 +158,16 @@ void OctreeNode::expandNode() {
 				}
 			}
 			//negZ
-			if (bPos.z - r < pos.z + size / 2.0) {
+			if (bPos.z - dim.z < pos.z + size / 2.0) {
 				//posY
-				if (bPos.y + r > pos.y + size / 2.0) {
+				if (bPos.y + dim.y > pos.y + size / 2.0) {
 					if (children[6] == nullptr) {
 						children[6] = new OctreeNode(pos.add(Vector3D(0, size/2.0, 0)), size / 2.0, minSize);
 					}
 					children[6]->addBody(b);
 				}
 				//negY
-				if (bPos.y - r < pos.y + size / 2.0) {
+				if (bPos.y - dim.y < pos.y + size / 2.0) {
 					if (children[7] == nullptr) {
 						children[7] = new OctreeNode(pos.add(Vector3D(0, 0, 0)), size / 2.0, minSize);
 					}

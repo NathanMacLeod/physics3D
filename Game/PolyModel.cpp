@@ -28,6 +28,8 @@ PolyModel::PolyModel() {
 
 }
 
+PolyModel::~PolyModel() {}
+
 void PolyModel::rotate(Rotor rotation) {
 	setOrientation(orientation.applyRotor(rotation));
 }
@@ -67,8 +69,12 @@ Rotor PolyModel::getOrientation() {
 	return orientation;
 }
 
-std::vector<Polygon3D>* PolyModel::getPolygons() {
-	return &worldPolygons;
+void PolyModel::draw(PixelEngine3D* g, Vector3D cameraPos, Rotor cameraDir, double FOV) {
+	if (!outOfView(cameraPos, cameraDir, FOV, g->ScreenWidth(), g->ScreenHeight())) {
+		for (Polygon3D p : worldPolygons) {
+			g->drawPolygon(p, cameraPos, cameraDir, FOV, true);
+		}
+	}
 }
 
 //camera dir should be unit length

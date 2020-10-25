@@ -22,6 +22,7 @@ private:
 	OctreeNode* root;
 public:
 	PhysicsEngine(double timestep);
+	bool bodyInUse(uint16_t bodyID);
 	void setGravity(Vector3D gravity);
 	void setOctree(bool useOctree, Vector3D octreeOrigin = Vector3D(0, 0, 0), double octreeSize = 1000, double octreeMinSize = 20);
 	double getTimestep();

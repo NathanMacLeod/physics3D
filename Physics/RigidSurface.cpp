@@ -10,7 +10,7 @@ RigidSurface::RigidSurface(const std::vector<Vector3D>* points, const Vector3D n
 		reverseOrder();
 	}
 	this->interiorSurface = interiorSurface;
-	nVInverseMag = ((cross.dotProduct(normalVector) < 0) ? -1 : 1) / cross.getMagnitude();
+	nVInverseMag = 1 / cross.getMagnitude();// ((cross.dotProduct(normalVector) < 0) ? -1 : 1) / cross.getMagnitude();
 	caclulateInverseSegmentMagnitudes();
 }
 
@@ -18,8 +18,10 @@ RigidSurface::RigidSurface(const RigidSurface& surface) {
 	for (Vector3D* p : surface.points) {
 		points.push_back(new Vector3D(p->x, p->y, p->z));
 	}
-	//nVInverseMag = surface.nVInverseMag;
-	caclulateInverseSegmentMagnitudes();
+
+	interiorSurface = surface.interiorSurface;
+	nVInverseMag = surface.nVInverseMag;
+	inverseSegmentMagnitudes = surface.inverseSegmentMagnitudes;
 }
 
 void RigidSurface::reverseOrder() {
