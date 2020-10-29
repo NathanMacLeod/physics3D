@@ -267,9 +267,6 @@ Vector3D RigidBody::gyroAccel(double time) {
 	Vector3D wB = orientation.getInverse().rotate(angularVelocity);
 	Vector3D w2B = wB;
 
-	Vector3D wAccel = tensorInverse * ((inertiaTensor * wB).crossProduct(wB));
-	return orientation.rotate(wAccel.multiply(time).add(wB));
-
 	int nItr = 1;
 	for (int i = 0; i < nItr; i++) {
 		Vector3D funcW = (inertiaTensor * w2B.sub(wB)).add(w2B.crossProduct(inertiaTensor * w2B).multiply(time));
