@@ -433,6 +433,8 @@ bool ConvexHull::SATColliderDetect(ConvexHull* potCollider, std::vector<ColPoint
 	Vector3D colVector;
 	double lowestColDepth = -1;
 	double winningCollideeMax;
+	*separatingAxis = false;
+	bool colFound = false;
 
 	for (RigidSurface* s : surfaces) {
 		Vector3D n = s->getUnitNorm();
@@ -443,15 +445,15 @@ bool ConvexHull::SATColliderDetect(ConvexHull* potCollider, std::vector<ColPoint
 				alreadyTested = true;
 			}
 		}
-		//interior surface only is checked for a separating axis,
-		//if a non interior surface with same norm exists 
 		if (alreadyTested) {
 			continue;
 		}
-		testedDirs.push_back(n);
+		if (!s->isInteriorSurface()) {
+			testedDirs.push_back(n);
+		}
 
 		double colliderMax, colliderMin, collideeMax, collideeMin;
-		
+
 
 		Vector3D minPoint;
 		Vector3D maxPoint;
@@ -459,45 +461,87 @@ bool ConvexHull::SATColliderDetect(ConvexHull* potCollider, std::vector<ColPoint
 		findMaxMin(n, &collideeMax, &collideeMin, nullptr, nullptr);
 		potCollider->findMaxMin(n, &colliderMax, &colliderMin, &maxPoint, &minPoint);
 
-		if (!(colliderMin > collideeMax || colliderMax < collideeMin)) { //check for intersection
-			double colDepth = collideeMax - colliderMin;
-			Vector3D potColPoint = minPoint;
-			bool flipped = false;
-			if (colliderMax - collideeMin < colDepth) {
-				flipped = true;
-				colDepth = colliderMax - collideeMin;
-				n = n.getInverse();
-				potColPoint = maxPoint;
-			}
+		double colDepth;
 
-			if (getPointInsideBody(potColPoint) && (colDepth < lowestColDepth || lowestColDepth == -1)) {
-				lowestColDepth = colDepth;
-				colPoint = potColPoint;
-				colVector = n;
-				winningCollideeMax = (flipped) ? -collideeMin : collideeMax;
+		if (!(colliderMin > collideeMax || colliderMax < collideeMin)) { //check for intersection
+			if (!s->isInteriorSurface()) {
+				colDepth = collideeMax - colliderMin;
+				Vector3D potColPoint = minPoint;
+				bool flipped = false;
+				if (colliderMax - collideeMin < colDepth) {
+					flipped = true;
+					colDepth = colliderMax - collideeMin;
+					n = n.getInverse();
+					potColPoint = maxPoint;
+				}
+
+				if ((true || getPointInsideBody(potColPoint)) && (colDepth < lowestColDepth || lowestColDepth == -1)) {
+					lowestColDepth = colDepth;
+					colPoint = potColPoint;
+					colVector = n;
+					winningCollideeMax = (flipped) ? -collideeMin : collideeMax;
+					colFound = true;
+				}
 			}
 		}
 		else {
 			//existense of separating axis => no colliding
+			double d1 = abs(colliderMin - collideeMax);
+			double d2 = abs(collideeMin - colliderMax);
+			double colDepth = (d1 < d2) ? d1 : d2;
+			if (colDepth < lowestColDepth) {
+				lowestColDepth = colDepth;
+			}
 			*separatingAxis = true;
 			return false;
 		}
 	}
 
-	if (lowestColDepth != -1) {
+	*colDepth = lowestColDepth;
+
+	if (*separatingAxis) {
+		return false;
+	}
+
+	Vector3D colSurfaceN;
+	RigidSurface* colSurface = nullptr;
+	for (RigidSurface* s : surfaces) {
+		Vector3D n = s->getUnitNorm();
+		if (colSurface == nullptr || n.dotProduct(colVector) > colSurfaceN.dotProduct(colVector)) {
+			colSurface = s;
+			colSurfaceN = n;
+		}
+	}
+
+	/*if (lowestColDepth != -1) {
 		for (Vector3D* p : potCollider->colPoints) {
 			if (getPointInsideBody(*p)) {
 				double nDotVal = p->dotProduct(colVector);
 				colSupPoints->push_back(ColPointInfo(*p, winningCollideeMax - nDotVal));
 			}
 		}
+	}*/
+
+	//check colPoint in clipped manifold
+	if (colFound) {
+		for (int i = 0; i < colSurface->getPoints()->size(); i++) {
+			Vector3D* p1 = colSurface->getPoints()->at(i);
+			int j = (i == colSurface->getPoints()->size() - 1) ? 0 : i + 1;
+			Vector3D* p2 = colSurface->getPoints()->at(j);
+			Vector3D toP = colPoint.sub(*p1);
+			Vector3D clipNorm = colVector.crossProduct(p2->sub(*p1));
+			if (clipNorm.dotProduct(toP) < 0) {
+				return false;
+			}
+		}
+	}
+	else {
+		return false;
 	}
 
 	*collisionPoint = colPoint;
 	*nVect = colVector;
-	*colDepth = lowestColDepth;
-	*separatingAxis = false;
-	return lowestColDepth != -1;
+	return colFound;
 }
 
 bool ConvexHull::SATEdgeCol(ConvexHull* potCollider, Vector3D* collisionPoint, Vector3D* nVect, double* collisionDepth, bool* separatingAxis) {
@@ -509,6 +553,7 @@ bool ConvexHull::SATEdgeCol(ConvexHull* potCollider, Vector3D* collisionPoint, V
 
 	bool separtingAxisFound = false;
 
+	*separatingAxis = false;
 	for (Edge* edge1 : colEdges) {
 
 		for (Edge* edge2 : potCollider->colEdges) {
@@ -527,9 +572,10 @@ bool ConvexHull::SATEdgeCol(ConvexHull* potCollider, Vector3D* collisionPoint, V
 			findMaxMin(n, &collideeMax, &collideeMin, nullptr, nullptr);
 			potCollider->findMaxMin(n, &colliderMax, &colliderMin, nullptr, nullptr);
 
+			double colDepth;
 			if (!(colliderMin > collideeMax || colliderMax < collideeMin)) { //check for intersection
 				if (!edge1->interiorEdge && !edge2->interiorEdge) {
-					double colDepth = collideeMax - colliderMin;
+					colDepth = collideeMax - colliderMin;
 					if (colliderMax - collideeMin < colDepth) {
 						colDepth = colliderMax - collideeMin;
 						n = n.getInverse();
@@ -566,16 +612,26 @@ bool ConvexHull::SATEdgeCol(ConvexHull* potCollider, Vector3D* collisionPoint, V
 				}
 			}
 			else {
-				*separatingAxis = true;
 				//existense of separating axis => no colliding
+				double d1 = abs(colliderMin - collideeMax);
+				double d2 = abs(collideeMin - colliderMax);
+				double colDepth = (d1 < d2) ? d1 : d2;
+				if (colDepth < lowestColDepth) {
+					lowestColDepth = colDepth;
+				}
+				*separatingAxis = true;
 				return false;
 			}
 		}
 	}
 
+	*collisionDepth = lowestColDepth;
+
+	if (*separatingAxis) {
+		return false;
+	}
+
 	*collisionPoint = colPoint;
 	*nVect = colVector;
-	*collisionDepth = lowestColDepth;
-	*separatingAxis = false;
-	return lowestColDepth != -1;
+	return true;
 }

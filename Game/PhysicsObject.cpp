@@ -23,7 +23,7 @@ PhysicsObject::~PhysicsObject() {
 void PhysicsObject::debugDraw(PixelEngine3D* g, Vector3D cameraPos, Rotor cameraDir, double FOV) {
 	for (ConvexHull* h : *body->getHulls()) {
 
-		g->draw3DPoint(h->getCenterOfMass(), cameraPos, cameraDir, FOV, olc::RED, true);
+		//g->draw3DPoint(h->getCenterOfMass(), cameraPos, cameraDir, FOV, olc::RED, true);
 		for (RigidSurface* s : *h->getSurfaces()) {
 
 			Vector3D avg(0, 0, 0);
@@ -49,6 +49,8 @@ void PhysicsObject::draw(PixelEngine3D* g, Vector3D cameraPos, Rotor cameraDir, 
 
 		model->setPosAndOrientation(body->getOrientation(), body->getCenterOfMass());
 	}
+	
+	//debugDraw(g, cameraPos, cameraDir, FOV);
 	model->draw(g, cameraPos, cameraDir, FOV);
 }
  

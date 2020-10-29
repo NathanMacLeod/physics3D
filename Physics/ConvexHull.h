@@ -55,6 +55,7 @@ public:
 	double getMass();
 	bool hullsInCollisionRange(ConvexHull* hull);
 	bool SATColliderDetect(ConvexHull* potCollider, std::vector<ColPointInfo>* colSupPoints, Vector3D* colPoint, Vector3D* nVect, double* colDepth, bool* separatingAxis);
+	//bool SATNew(ConvexHull* potCollider, std::vector<ColPointInfo>* colSupPoints, Vector3D* collisionPoint, Vector3D* nVect, double* colDepth, bool* separatingAxis);
 	bool SATEdgeCol(ConvexHull* b, Vector3D* collisionPoint, Vector3D* normal, double* colDepth, bool* separatingAxis);
 	bool getPointInsideBody(const Vector3D point);
 };

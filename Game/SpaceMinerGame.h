@@ -7,7 +7,7 @@ class SpaceMinerGame : public PixelEngine3D {
 private:
 	std::vector<PhysicsObject*> objects;
 
-	PhysicsEngine pEngine = PhysicsEngine(0.01667);
+	PhysicsEngine pEngine = PhysicsEngine(0.00167);
 	Vector3D cameraPos;
 	Rotor cameraOrientation;
 
@@ -17,4 +17,6 @@ private:
 
 	bool OnUserCreate();
 	bool OnUserUpdate(float fElapsedTime);
+	void createShipMesh(bool playerShip, double size, olc::Pixel color, olc::Pixel lineColor, olc::Pixel highlight,
+		olc::Pixel highlightLine, olc::Pixel cockpit, olc::Pixel cockpitLine, RigidBody** bodyOut, PolyModel** meshOut);
 };

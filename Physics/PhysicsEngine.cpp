@@ -54,6 +54,9 @@ double PhysicsEngine::getTimestep() {
 void PhysicsEngine::pushBodiesApart(RigidBody* collider, RigidBody* collidee, const Vector3D nV, double colDepth) {
 	double pushDist = colDepth + 0.1;
 	double dCldr = pushDist / (1 + collider->getMass() * collidee->getInverseMass());
+	if (collider->getFixed()) {
+		dCldr = 0;
+	}
 	double dCldee = pushDist - dCldr;
 	Vector3D cldeTransform = nV.multiply(-dCldee);
 	Vector3D cldrTransform = nV.multiply(dCldr);
@@ -125,47 +128,11 @@ void PhysicsEngine::resolveImpulses(RigidBody* collider, RigidBody* collidee, co
 	}
 }
 
-void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body2) {
-	static double narrowTests = 0;
-	static double satTests = 0;
-	static double collApply = 0;
+bool PhysicsEngine::getColDetectInfo(RigidBody* body1, RigidBody* body2, std::vector<ConvexHull::ColPointInfo>* supPoints, Vector3D* norm,
+	Vector3D* colPoint, double* colDepthOut, bool* isFaceCollision, RigidBody** collider, RigidBody** collidee) {
 
-	//checks to avoid unnecessary/unwanted physics
-	if (body1->getFixed() && body2->getFixed()) {
-		return;
-	}
-	if (body1->onNoColList(body2->getID()) || body2->onNoColList(body1->getID())) {
-		return;
-	}
-	
-	if (body1->alreadyTestedAgainst(body2->getID())) {
-		return;
-	}
-	else {
-		body1->addTestedAgainst(body2->getID());
-		body2->addTestedAgainst(body1->getID());
-	}
-
-	auto t1 = std::chrono::system_clock::now();
-	if (!body1->bodiesInCollisionRange(body2)) {
-		auto t2 = std::chrono::system_clock::now();
-		std::chrono::duration<float> t = t2 - t1;
-		narrowTests += t.count();
-		return;
-	}
-	auto t2 = std::chrono::system_clock::now();
-
-	std::vector<ConvexHull::ColPointInfo> supPoints;
-	Vector3D norm;
-	Vector3D colPoint;
-	double colDepth = -1; //default value of -1 indicates no collision found yet
-	bool isFaceCollision = true;
-
-	RigidBody* collider = body2;
-	RigidBody* collidee = body1;
-
-	//find the intersection between hulls of each body with greatest penetration,
-	//and resolve that collision
+	bool colFound = false;
+	double colDepth = -1;
 	for (ConvexHull* hullA : *body1->getHulls()) {
 		for (ConvexHull* hullB : *body2->getHulls()) {
 
@@ -227,38 +194,107 @@ void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body
 				}
 
 				if (colDepth == -1 || winningDepth > colDepth) {
+					colFound = true;
+
 					switch (winningCol) {
 					case 0:
-						collider = body2;
-						collidee = body1;
-						supPoints = supPointsA;
-						norm = normA;
-						colPoint = colPointA;
+						*collider = body2;
+						*collidee = body1;
+						*supPoints = supPointsA;
+						*norm = normA;
+						*colPoint = colPointA;
 						colDepth = colDepthA;
-						isFaceCollision = true;
+						*isFaceCollision = true;
 						break;
 					case 1:
-						collider = body1;
-						collidee = body2;
-						supPoints = supPointsB;
-						norm = normB;
-						colPoint = colPointB;
+						*collider = body1;
+						*collidee = body2;
+						*supPoints = supPointsB;
+						*norm = normB;
+						*colPoint = colPointB;
 						colDepth = colDepthB;
-						isFaceCollision = true;
+						*isFaceCollision = true;
 						break;
 					case 2:
-						norm = normE;
-						colPoint = colPointE;
+						*norm = normE;
+						*colPoint = colPointE;
 						colDepth = colDepthE;
-						isFaceCollision = false;
+						*isFaceCollision = false;
 						break;
 					}
 				}
 			}
 		}
 	}
+	*colDepthOut = colDepth;
+	return colFound;
+}
+
+void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body2) {
+	static double narrowTests = 0;
+	static double satTests = 0;
+	static double collApply = 0;
+
+	//checks to avoid unnecessary/unwanted physics
+	if (body1->getFixed() && body2->getFixed()) {
+		return;
+	}
+	if (body1->onNoColList(body2->getID()) || body2->onNoColList(body1->getID())) {
+		return;
+	}
+	
+	if (body1->alreadyTestedAgainst(body2->getID())) {
+		return;
+	}
+	else {
+		body1->addTestedAgainst(body2->getID());
+		body2->addTestedAgainst(body1->getID());
+	}
+
+	auto t1 = std::chrono::system_clock::now();
+	if (!body1->bodiesInCollisionRange(body2)) {
+		auto t2 = std::chrono::system_clock::now();
+		std::chrono::duration<float> t = t2 - t1;
+		narrowTests += t.count();
+		return;
+	}
+	auto t2 = std::chrono::system_clock::now();
+
+	std::vector<ConvexHull::ColPointInfo> supPoints;
+	Vector3D norm;
+	Vector3D colPoint;
+	double colDepth;
+	bool isFaceCollision = true;
+
+	RigidBody* collider = body2;
+	RigidBody* collidee = body1;
+
+	//find the intersection between hulls of each body with greatest penetration,
+	//and resolve that collision
+	bool colFound = getColDetectInfo(body1, body2, &supPoints, &norm, &colPoint, &colDepth, &isFaceCollision, &collider, &collidee);
+	double ogDepth = colDepth;
+	if (colFound && false) {
+		double netT = 0;
+		int maxItr = 5;
+		double eps = 1;
+		double t = -timestep / 2.0;
+		for (int i = 0; i < maxItr && colDepth > eps; i++) {
+			body1->moveInTime(t);
+			body2->moveInTime(t);
+			netT += t;
+			if (getColDetectInfo(body1, body2, &supPoints, &norm, &colPoint, &colDepth, &isFaceCollision, &collider, &collidee)) {
+				t = -abs(t) / 2.0;
+			}
+			else {
+				t = abs(t) / 2.0;
+			}
+		}
+		body1->moveInTime(-netT);
+		body2->moveInTime(-netT);
+	}
+
 	auto t3 = std::chrono::system_clock::now();
-	if (colDepth != -1) {
+	if (colFound) {
 
 		bool contactColl = false;
 
@@ -268,7 +304,7 @@ void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body
 			contactColl = true;
 			Vector3D average(0, 0, 0);
 			double depth = 0;
-			for (ConvexHull::ColPointInfo supPoint : supPoints) {
+			/*for (ConvexHull::ColPointInfo supPoint : supPoints) {
 				average.x += supPoint.point.x;
 				average.y += supPoint.point.y;
 				average.z += supPoint.point.z;
@@ -277,7 +313,8 @@ void PhysicsEngine::detectAndResolveCollisions(RigidBody* body1, RigidBody* body
 			average.x /= supPoints.size();
 			average.y /= supPoints.size();
 			average.z /= supPoints.size();
-			depth /= supPoints.size();
+			depth /= supPoints.size();*/
+			average = colPoint;
 
 			if (collider->verifyCollisionPointNotExiting(collidee, norm, average)) {
 				Vector3D vCldrP0 = collider->getVelocityOfPoint(colPoint);

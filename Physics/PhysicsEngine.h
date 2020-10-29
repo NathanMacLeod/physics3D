@@ -18,6 +18,10 @@ private:
 	uint16_t giveID();
 	void pushBodiesApart(RigidBody* collider, RigidBody* collidee, const Vector3D nV, double colDepth);
 	void resolveImpulses(RigidBody* collider, RigidBody* collidee, const Vector3D nV, Vector3D colPoint, const std::vector<ConvexHull::ColPointInfo> supPoints, double restitution);
+
+	bool getColDetectInfo(RigidBody* b1, RigidBody* b2, std::vector<ConvexHull::ColPointInfo>* supPoints, Vector3D* norm, 
+		Vector3D* colPoint, double* colDepth, bool* isFaceCollision, RigidBody** collider, RigidBody** collidee);
+
 	void detectAndResolveCollisions(RigidBody* body1, RigidBody* body2);
 	OctreeNode* root;
 public:
