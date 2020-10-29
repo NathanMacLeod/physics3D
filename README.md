@@ -20,7 +20,7 @@ very helpful for learning the geometric algebra to understand rotors.
 
 
 
-The physics engine allows for the representation of rigid bodies, both concave and covnex. Concave rigid bodies are representing as the union of multiple pre-defined convex hulls.
+The physics engine allows for the representation of rigid bodies, both concave and covnex. Concave rigid bodies are representing as the union of multiple pre-defined convex hulls. Currently im having issues with the concave bodies working properly, but the convex ones work pretty good.
 
 Convex hulls represent a convex polyhedron, and a density. The Inertia tensor and center of mass of a convex hull is calculated using the method outline in
 [Fast and Accurate Computation of Polyhedral Mass Properties by Brian Miritch](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.56.127&rep=rep1&type=pdf).
