@@ -1,6 +1,5 @@
 # physics3D
-This project is a fairly simple rigid body 3d physics engine I am working on. My coding style is a little inconsitent throughout the program, but I am still a bit new to
-C++ so my style is changing as I learn more.
+This project is a fairly simple rigid body 3d physics engine I am working on.
 
 The main project is the physics engine, but I also have built a 3d rendering program to go along with it. The testing and 3d program is built on top of the
 [Pixel Game Engine](https://github.com/OneLoneCoder/olcPixelGameEngine), which is a really easy to work program (only requires including one header file) that provides
