@@ -34,5 +34,6 @@ public:
 	void iterateEngine(double secondsPassed);
 	void addRigidBody(RigidBody* body);
 	bool removeRigidBody(RigidBody* body);
+	void removeAllBodies();
 	OctreeNode* getOctreeRoot();
 };

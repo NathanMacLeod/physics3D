@@ -21,7 +21,30 @@ PhysicsObject::~PhysicsObject() {
 }
 
 void PhysicsObject::debugDraw(PixelEngine3D* g, Vector3D cameraPos, Rotor cameraDir, double FOV) {
+	int i = 0;
 	for (ConvexHull* h : *body->getHulls()) {
+
+		olc::Pixel col;
+		switch (i % 6) {
+		case 0:
+			col = olc::RED;
+			break;
+		case 1:
+			col = olc::WHITE;
+			break;
+		case 2:
+			col = olc::GREEN;
+			break;
+		case 3:
+			col = olc::BLUE;
+			break;
+		case 4:
+			col = olc::YELLOW;
+			break;
+		case 5:
+			col = olc::MAGENTA;
+			break;
+		}
 
 		//g->draw3DPoint(h->getCenterOfMass(), cameraPos, cameraDir, FOV, olc::RED, true);
 		for (RigidSurface* s : *h->getSurfaces()) {
@@ -32,14 +55,16 @@ void PhysicsObject::debugDraw(PixelEngine3D* g, Vector3D cameraPos, Rotor camera
 				Vector3D* p1 = s->getPoints()->at(i);
 				int j = (i == s->getPoints()->size() - 1) ? 0 : i + 1;
 				Vector3D* p2 = s->getPoints()->at(j);
-				g->draw3DLine(*p1, *p2, cameraPos, cameraDir, FOV, olc::GREEN);
+				g->draw3DLine(*p1, *p2, cameraPos, cameraDir, FOV, col);
 				avg = avg.add(*p1);
 			}
 
 			avg = avg.multiply(1.0 / s->getPoints()->size());
 
-			g->draw3DLine(avg, avg.add(s->getUnitNorm().multiply(150)), cameraPos, cameraDir, FOV, (s->isInteriorSurface()) ? olc::CYAN : olc::MAGENTA);
+			g->draw3DLine(avg, avg.add(s->getUnitNorm().multiply(15)), cameraPos, cameraDir, FOV, (s->isInteriorSurface()) ? olc::CYAN : col);
 		}
+
+		i++;
 	}
 }
 

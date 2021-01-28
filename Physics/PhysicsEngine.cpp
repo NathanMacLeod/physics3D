@@ -47,6 +47,10 @@ bool PhysicsEngine::removeRigidBody(RigidBody* body) {
 	return false;
 }
 
+void PhysicsEngine::removeAllBodies() {
+	rigidBodies.clear();
+}
+
 double PhysicsEngine::getTimestep() {
 	return timestep;
 }
@@ -358,6 +362,8 @@ void PhysicsEngine::iterateEngine(double secondsPassed) {
 	timeBuff += secondsPassed;
 	double maxBuff = std::fmax(0.1, timestep);
 	timeBuff = std::fmin(maxBuff, timeBuff);
+
+	//timestep = secondsPassed;
 	while (timeBuff >= timestep) {
 		timeBuff -= timestep;
 		iterateEngineTimestep();

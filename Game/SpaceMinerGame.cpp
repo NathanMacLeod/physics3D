@@ -156,7 +156,7 @@ void SpaceMinerGame::readInput(float fElapsedTime) {
 		int z = 0;
 
 		PhysicsObject* object;
-		//object = createBox(75, 75, 375, x, y, z, olc::GREEN, olc::BLACK, false);
+		//object = createBox(75, 5, 375, x, y, z, olc::GREEN, olc::BLACK, false);
 
 		RigidBody* body;
 		PolyModel* model;

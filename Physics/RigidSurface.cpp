@@ -5,13 +5,19 @@ RigidSurface::RigidSurface(const std::vector<Vector3D>* points, const Vector3D n
 	for (Vector3D p : *points) {
 		this->points.push_back(new Vector3D(p.x, p.y, p.z));
 	}
-	Vector3D cross = Vector3D(points->at(0), points->at(1)).crossProduct(Vector3D(points->at(1), points->at(2)));
+	Vector3D cross = getNCross();
 	if (cross.dotProduct(normalVector) < 0) {
 		reverseOrder();
+		cross = getNCross();
 	}
 	this->interiorSurface = interiorSurface;
 	nVInverseMag = 1 / cross.getMagnitude();// ((cross.dotProduct(normalVector) < 0) ? -1 : 1) / cross.getMagnitude();
+	
 	caclulateInverseSegmentMagnitudes();
+}
+
+Vector3D RigidSurface::getNCross() {
+	return Vector3D(*points.at(0), *points.at(1)).crossProduct(Vector3D(*points.at(1), *points.at(2)));
 }
 
 RigidSurface::RigidSurface(const RigidSurface& surface) {
@@ -53,8 +59,7 @@ bool RigidSurface::isInteriorSurface() {
 }
 
 Vector3D RigidSurface::getUnitNorm() {
-	return Vector3D(*points.at(0), *points.at(1)).crossProduct(Vector3D(*points.at(1), *points.at(2)))
-		.multiply(nVInverseMag);
+	return getNCross().multiply(nVInverseMag);
 }
 
 std::vector<Vector3D*>* RigidSurface::getPoints() {

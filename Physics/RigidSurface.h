@@ -10,10 +10,12 @@ class RigidSurface {
 	std::vector<double> inverseSegmentMagnitudes;
 	double nVInverseMag;
 	bool interiorSurface;
+	Vector3D getNCross();
 
 	void caclulateInverseSegmentMagnitudes();
 	void reverseOrder();
 public:
+
 	RigidSurface(const std::vector<Vector3D>* points, const Vector3D normalVector, bool interiorSurface = false);
 	RigidSurface(const RigidSurface& surface);
 	std::vector<Vector3D*>* getPoints();

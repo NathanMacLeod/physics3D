@@ -46,6 +46,7 @@ private:
 		else {
 			n = l.crossProduct(Vector3D(0, 1, 0));
 		}
+		double k = fov * n.dotProduct(p1Pre);
 		//Iterate along the longer dimension to avoid gaps in line
 		if (absChangeX > absChangeY) {
 
@@ -74,6 +75,7 @@ private:
 						Vector3D v(sX, sY, fov);
 						double t = n.dotProduct(p1Pre) / n.dotProduct(v);
 						z = v.z * t;
+						//z = k / (n.x * sX + n.y * sY + n.z * fov);
 					}
 
 					int col = 255 * z / 250;
@@ -113,6 +115,7 @@ private:
 						Vector3D v(sX, sY, fov);
 						double t = n.dotProduct(p1Pre) / n.dotProduct(v);
 						z = v.z * t;
+						//z = k / (n.x * sX + n.y * sY + n.z * fov);
 					}
 
 					int col = 255 * z / 250;
@@ -136,6 +139,7 @@ private:
 	void fillTriangle3D(const Vector3D p1, const Vector3D p2, const Vector3D p3, olc::Pixel color, const Vector3D p1Pre, const Vector3D p2Pre, const Vector3D p3Pre, double fov, bool useZBuffer) {
 		Vector3D normalVector;
 		double invNz = 0;
+		double k;
 		Vector3D v1Pre = p2Pre.sub(p1Pre);
 		Vector3D v2Pre = p3Pre.sub(p1Pre);
 		if (useZBuffer) {
@@ -143,6 +147,7 @@ private:
 			Vector3D v2 = p3.sub(p1);
 
 			normalVector = v1Pre.crossProduct(v2Pre);
+			k = fov * normalVector.dotProduct(p1Pre);
 			invNz = 1.0 / normalVector.z;
 		}
 		const Vector3D* upperPoint = &p1;
@@ -201,17 +206,17 @@ private:
 						double dy = i - ScreenHeight() / 2.0;
 						double dx = j - ScreenWidth() / 2.0;
 
-						Vector3D v(dx, dy, fov);
-						double t = normalVector.dotProduct(p1Pre) / normalVector.dotProduct(v);
-						double z = v.z * t;
+						//Vector3D v(dx, dy, fov);
+						//double t = normalVector.dotProduct(p1Pre) / normalVector.dotProduct(v);
+						double z = k / (normalVector.x * dx + normalVector.y * dy + normalVector.z * fov);
 
-						//int col = 255 * z / 200;
-						//if (col > 255) {
-						//	col = 255;
-						//}
+						int col = 255 * z / 800;
+						if (col > 255) {
+							col = 255;
+						}
 						//bool red = col < 0;
 
-						//drawPixel3D(j, i, z, olc::Pixel(0, 0, col));
+						//drawPixel3D(j, i, z, olc::Pixel(col, col, col));
 						drawPixel3D(j, i, z, color);
 					}
 					else {
@@ -258,17 +263,17 @@ private:
 					double dy = i - ScreenHeight() / 2.0;
 					double dx = j - ScreenWidth() / 2.0;
 
-					Vector3D v(dx, dy, fov);
-					double t = normalVector.dotProduct(p1Pre) / normalVector.dotProduct(v);
-					double z = v.z * t;
+					//Vector3D v(dx, dy, fov);
+					//double t = normalVector.dotProduct(p1Pre) / normalVector.dotProduct(v);
+					double z = k / (normalVector.x * dx + normalVector.y * dy + normalVector.z * fov);
 
-					//int col = 255 * z / 200;
-					//if (col > 255) {
-					//	col = 255;
-					//}
+					int col = 255 * z / 800;
+					if (col > 255) {
+						col = 255;
+					}
 					//bool red = col < 0;
 
-					//drawPixel3D(j, i, z, olc::Pixel(0, 0, col));
+					//drawPixel3D(j, i, z, olc::Pixel(col, col, col));
 					drawPixel3D(j, i, z, color);
 				}
 				else {
